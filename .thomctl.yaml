@@ -1,0 +1,14 @@
+# thomctl project config. Picked up automatically when thomctl is invoked from
+# anywhere under this directory.
+backend: jira
+
+jira:
+  project_key: OPE
+  prd_issue_type: Epic
+  subissue_issue_type: Task
+  prd_label: PRD
+  ready_label: ready-for-agent
+  default_labels:
+    - engine
+  default_assignee: "@me"        # auto-assign current user on create
+  close_status: Completata       # target status name (NOT transition name)
