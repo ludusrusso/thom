@@ -17,10 +17,10 @@ import (
 )
 
 type Backend struct {
-	cfg config.JiraConfig
+	cfg config.Config
 }
 
-func New(cfg config.JiraConfig) *Backend {
+func New(cfg config.Config) *Backend {
 	return &Backend{cfg: cfg}
 }
 
@@ -28,7 +28,7 @@ func New(cfg config.JiraConfig) *Backend {
 
 func (b *Backend) CreatePRD(opts backend.CreateOpts) (string, error) {
 	labels := mergeLabels(b.cfg.DefaultLabels, opts.Labels, b.cfg.PRDLabel)
-	return b.create(opts, b.cfg.PRDIssueType, labels, "")
+	return b.create(opts, b.cfg.Jira.PRDIssueType, labels, "")
 }
 
 func (b *Backend) CreateSubissue(opts backend.CreateOpts) (string, error) {
@@ -36,13 +36,13 @@ func (b *Backend) CreateSubissue(opts backend.CreateOpts) (string, error) {
 		return "", errors.New("parent key is required for sub-issues")
 	}
 	labels := mergeLabels(b.cfg.DefaultLabels, opts.Labels)
-	return b.create(opts, b.cfg.SubissueIssueType, labels, opts.ParentKey)
+	return b.create(opts, b.cfg.Jira.SubissueIssueType, labels, opts.ParentKey)
 }
 
 func (b *Backend) ListPRDs(opts backend.ListOpts) ([]backend.Issue, error) {
 	clauses := []string{
-		fmt.Sprintf("project = %s", quote(b.cfg.ProjectKey)),
-		fmt.Sprintf("issuetype = %s", quote(b.cfg.PRDIssueType)),
+		fmt.Sprintf("project = %s", quote(b.cfg.Jira.ProjectKey)),
+		fmt.Sprintf("issuetype = %s", quote(b.cfg.Jira.PRDIssueType)),
 	}
 	if b.cfg.PRDLabel != "" {
 		clauses = append(clauses, fmt.Sprintf("labels = %s", quote(b.cfg.PRDLabel)))
@@ -62,8 +62,8 @@ func (b *Backend) ListSubissues(parentKey string, opts backend.ListOpts) ([]back
 		clauses = append(clauses, fmt.Sprintf("parent = %s", parentKey))
 	} else {
 		clauses = append(clauses,
-			fmt.Sprintf("project = %s", quote(b.cfg.ProjectKey)),
-			fmt.Sprintf("issuetype = %s", quote(b.cfg.SubissueIssueType)),
+			fmt.Sprintf("project = %s", quote(b.cfg.Jira.ProjectKey)),
+			fmt.Sprintf("issuetype = %s", quote(b.cfg.Jira.SubissueIssueType)),
 		)
 	}
 	for _, l := range opts.Labels {
@@ -204,7 +204,7 @@ func (b *Backend) RemoveLink(linkID string) error {
 
 func (b *Backend) Close(key, status, comment string) error {
 	if status == "" {
-		status = b.cfg.CloseStatus
+		status = b.cfg.Jira.CloseStatus
 	}
 	if status == "" {
 		return errors.New("no close status configured (set jira.close_status in .thomctl.yaml or pass --status)")
@@ -248,7 +248,7 @@ func (b *Backend) create(opts backend.CreateOpts, issueType string, labels []str
 		return "", err
 	}
 	payload := map[string]any{
-		"projectKey":  b.cfg.ProjectKey,
+		"projectKey":  b.cfg.Jira.ProjectKey,
 		"type":        issueType,
 		"summary":     opts.Summary,
 		"labels":      labels,

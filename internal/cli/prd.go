@@ -48,12 +48,12 @@ func prdCreateCmd() *cobra.Command {
 				return err
 			}
 			if !cmd.Flags().Changed("assignee") {
-				assignee = cfg.Jira.DefaultAssignee
+				assignee = cfg.DefaultAssignee
 			}
 			opts := backend.CreateOpts{
 				Summary:  title,
 				BodyMD:   b,
-				Labels:   append([]string{cfg.Jira.ReadyLabel}, labels...),
+				Labels:   append([]string{cfg.ReadyLabel}, labels...),
 				Assignee: assignee,
 			}
 			key, err := be.CreatePRD(opts)
@@ -71,7 +71,7 @@ func prdCreateCmd() *cobra.Command {
 	c.Flags().StringVar(&body, "body", "", "PRD body (markdown). Mutually exclusive with --body-file.")
 	c.Flags().StringVar(&bodyFile, "body-file", "", "Path to markdown file ('-' for stdin). Mutually exclusive with --body.")
 	c.Flags().StringSliceVar(&labels, "label", nil, "Extra labels to apply (repeatable).")
-	c.Flags().StringVar(&assignee, "assignee", "", "Assignee email or '@me'. Defaults to jira.default_assignee from config. Pass '' explicitly to leave unassigned.")
+	c.Flags().StringVar(&assignee, "assignee", "", "Assignee email or '@me'. Defaults to default_assignee from config. Pass '' explicitly to leave unassigned.")
 	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
 	return c
 }

@@ -1,12 +1,12 @@
 // Package config loads thomctl configuration from .thomctl.yaml.
 //
 // Search order:
-//  1. $THOMCTL_CONFIG if set
+//  1. $THOMCTL_CONFIG if set (file path)
 //  2. .thomctl.yaml walking up from the current working directory to the
 //     user's home directory (inclusive)
 //  3. $XDG_CONFIG_HOME/thomctl/config.yaml (or ~/.config/thomctl/config.yaml)
 //
-// Env vars override file values. See Load for the full list.
+// All configuration lives in yaml; there are no value-override env vars.
 package config
 
 import (
@@ -14,47 +14,56 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-	Backend string     `yaml:"backend"`
-	Jira    JiraConfig `yaml:"jira"`
+	Backend string `yaml:"backend"`
+
+	// Skill-convention knobs, shared across all backends.
+	PRDLabel        string   `yaml:"prd_label"`
+	ReadyLabel      string   `yaml:"ready_label"`
+	DefaultLabels   []string `yaml:"default_labels"`
+	DefaultAssignee string   `yaml:"default_assignee"`
+
+	Jira   JiraConfig   `yaml:"jira"`
+	Github GithubConfig `yaml:"github"`
 
 	// Source is the absolute path of the file that was loaded, or "" when
-	// defaults + env vars produced the config without a file.
+	// defaults produced the config without a file.
 	Source string `yaml:"-"`
 }
 
 type JiraConfig struct {
-	ProjectKey        string   `yaml:"project_key"`
-	PRDIssueType      string   `yaml:"prd_issue_type"`
-	SubissueIssueType string   `yaml:"subissue_issue_type"`
-	PRDLabel          string   `yaml:"prd_label"`
-	DefaultLabels     []string `yaml:"default_labels"`
-	ReadyLabel        string   `yaml:"ready_label"`
-	DefaultAssignee   string   `yaml:"default_assignee"`
-	CloseStatus       string   `yaml:"close_status"`
+	ProjectKey        string `yaml:"project_key"`
+	PRDIssueType      string `yaml:"prd_issue_type"`
+	SubissueIssueType string `yaml:"subissue_issue_type"`
+	CloseStatus       string `yaml:"close_status"`
 }
+
+// GithubConfig has no fields today: the repo is resolved by `gh` from the
+// current directory, close maps to `--reason completed|"not planned"`, and
+// issue type is derived from labels. Kept as a named struct so future
+// GitHub-specific knobs have a home without changing the yaml shape.
+type GithubConfig struct{}
 
 func defaults() Config {
 	return Config{
-		Backend: "jira",
+		Backend:         "jira",
+		PRDLabel:        "PRD",
+		ReadyLabel:      "ready-for-agent",
+		DefaultAssignee: "@me",
 		Jira: JiraConfig{
 			PRDIssueType:      "Epic",
 			SubissueIssueType: "Task",
-			PRDLabel:          "PRD",
-			ReadyLabel:        "ready-for-agent",
-			DefaultAssignee:   "@me",
 			CloseStatus:       "Done",
 		},
 	}
 }
 
-// Load resolves the config from file + env. A missing file is not an error
-// (defaults + env are used), but a malformed file is.
+// Load resolves the config from file. A missing file is not an error
+// (defaults are used), but a malformed file is.
 func Load() (Config, error) {
 	cfg := defaults()
 
@@ -73,56 +82,13 @@ func Load() (Config, error) {
 		cfg.Source = path
 	}
 
-	applyEnv(&cfg)
-
 	if cfg.Backend == "" {
 		cfg.Backend = "jira"
 	}
 	if cfg.Backend == "jira" && cfg.Jira.ProjectKey == "" {
-		return cfg, errors.New("jira.project_key not set (configure .thomctl.yaml or set THOMCTL_JIRA_PROJECT_KEY)")
+		return cfg, errors.New("jira.project_key not set in .thomctl.yaml")
 	}
 	return cfg, nil
-}
-
-func applyEnv(cfg *Config) {
-	if v := os.Getenv("THOMCTL_BACKEND"); v != "" {
-		cfg.Backend = v
-	}
-	if v := os.Getenv("THOMCTL_JIRA_PROJECT_KEY"); v != "" {
-		cfg.Jira.ProjectKey = v
-	}
-	if v := os.Getenv("THOMCTL_JIRA_PRD_TYPE"); v != "" {
-		cfg.Jira.PRDIssueType = v
-	}
-	if v := os.Getenv("THOMCTL_JIRA_SUBISSUE_TYPE"); v != "" {
-		cfg.Jira.SubissueIssueType = v
-	}
-	if v := os.Getenv("THOMCTL_JIRA_PRD_LABEL"); v != "" {
-		cfg.Jira.PRDLabel = v
-	}
-	if v := os.Getenv("THOMCTL_JIRA_READY_LABEL"); v != "" {
-		cfg.Jira.ReadyLabel = v
-	}
-	if v := os.Getenv("THOMCTL_JIRA_DEFAULT_LABELS"); v != "" {
-		cfg.Jira.DefaultLabels = splitCSV(v)
-	}
-	if v := os.Getenv("THOMCTL_JIRA_DEFAULT_ASSIGNEE"); v != "" {
-		cfg.Jira.DefaultAssignee = v
-	}
-	if v := os.Getenv("THOMCTL_JIRA_CLOSE_STATUS"); v != "" {
-		cfg.Jira.CloseStatus = v
-	}
-}
-
-func splitCSV(s string) []string {
-	parts := strings.Split(s, ",")
-	out := make([]string, 0, len(parts))
-	for _, p := range parts {
-		if p = strings.TrimSpace(p); p != "" {
-			out = append(out, p)
-		}
-	}
-	return out
 }
 
 func findConfigFile() (string, error) {

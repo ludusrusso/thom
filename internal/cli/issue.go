@@ -69,7 +69,7 @@ func issueCreateCmd() *cobra.Command {
 				return err
 			}
 			if !cmd.Flags().Changed("assignee") {
-				assignee = cfg.Jira.DefaultAssignee
+				assignee = cfg.DefaultAssignee
 			}
 			// HITL slices are explicitly NOT ready-for-agent: they need a human
 			// to unblock. AFK slices are. Plain --label flags are appended verbatim.
@@ -78,7 +78,7 @@ func issueCreateCmd() *cobra.Command {
 			case hitl:
 				out = append(out, "hitl")
 			case afk:
-				out = append(out, "afk", cfg.Jira.ReadyLabel)
+				out = append(out, "afk", cfg.ReadyLabel)
 			}
 			opts := backend.CreateOpts{
 				Summary:   title,
@@ -105,7 +105,7 @@ func issueCreateCmd() *cobra.Command {
 	c.Flags().StringSliceVar(&labels, "label", nil, "Extra labels (repeatable).")
 	c.Flags().BoolVar(&hitl, "hitl", false, "Mark as needing human interaction (adds 'hitl' label, no ready-for-agent).")
 	c.Flags().BoolVar(&afk, "afk", false, "Mark as agent-runnable (adds 'afk' + ready-for-agent labels).")
-	c.Flags().StringVar(&assignee, "assignee", "", "Assignee email or '@me'. Defaults to jira.default_assignee from config. Pass '' explicitly to leave unassigned.")
+	c.Flags().StringVar(&assignee, "assignee", "", "Assignee email or '@me'. Defaults to default_assignee from config. Pass '' explicitly to leave unassigned.")
 	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
 	return c
 }

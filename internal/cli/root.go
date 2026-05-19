@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ludusrusso/thom/internal/backend"
+	"github.com/ludusrusso/thom/internal/backend/github"
 	"github.com/ludusrusso/thom/internal/backend/jira"
 	"github.com/ludusrusso/thom/internal/config"
 )
@@ -47,9 +48,11 @@ func resolveBackend() (backend.Backend, config.Config, error) {
 	}
 	switch cfg.Backend {
 	case "jira":
-		return jira.New(cfg.Jira), cfg, nil
+		return jira.New(cfg), cfg, nil
+	case "github":
+		return github.New(cfg), cfg, nil
 	default:
-		return nil, cfg, fmt.Errorf("unknown backend %q (only \"jira\" is supported)", cfg.Backend)
+		return nil, cfg, fmt.Errorf("unknown backend %q (supported: \"jira\", \"github\")", cfg.Backend)
 	}
 }
 
@@ -62,19 +65,24 @@ func configCmd() *cobra.Command {
 			if err != nil {
 				return err
 			}
-			fmt.Printf("backend = %s\n", cfg.Backend)
+			fmt.Printf("backend          = %s\n", cfg.Backend)
 			if cfg.Source != "" {
-				fmt.Printf("source  = %s\n", cfg.Source)
+				fmt.Printf("source           = %s\n", cfg.Source)
 			} else {
-				fmt.Printf("source  = (defaults + env)\n")
+				fmt.Printf("source           = (defaults)\n")
 			}
-			if cfg.Backend == "jira" {
-				fmt.Printf("jira.project_key        = %s\n", cfg.Jira.ProjectKey)
-				fmt.Printf("jira.prd_issue_type     = %s\n", cfg.Jira.PRDIssueType)
-				fmt.Printf("jira.subissue_issue_type= %s\n", cfg.Jira.SubissueIssueType)
-				fmt.Printf("jira.prd_label          = %s\n", cfg.Jira.PRDLabel)
-				fmt.Printf("jira.ready_label        = %s\n", cfg.Jira.ReadyLabel)
-				fmt.Printf("jira.default_labels     = %v\n", cfg.Jira.DefaultLabels)
+			fmt.Printf("prd_label        = %s\n", cfg.PRDLabel)
+			fmt.Printf("ready_label      = %s\n", cfg.ReadyLabel)
+			fmt.Printf("default_labels   = %v\n", cfg.DefaultLabels)
+			fmt.Printf("default_assignee = %s\n", cfg.DefaultAssignee)
+			switch cfg.Backend {
+			case "jira":
+				fmt.Printf("jira.project_key         = %s\n", cfg.Jira.ProjectKey)
+				fmt.Printf("jira.prd_issue_type      = %s\n", cfg.Jira.PRDIssueType)
+				fmt.Printf("jira.subissue_issue_type = %s\n", cfg.Jira.SubissueIssueType)
+				fmt.Printf("jira.close_status        = %s\n", cfg.Jira.CloseStatus)
+			case "github":
+				fmt.Printf("github                   = (repo resolved from cwd by gh)\n")
 			}
 			return nil
 		},
