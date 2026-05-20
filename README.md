@@ -14,7 +14,7 @@ exposes one stable, semantic surface and makes the tracker-specific calls
 on the agent's behalf:
 
 ```
-thomctl prd    create | list | view
+thomctl prd    create | list | view | issues
 thomctl issue  create | list | view | comment | label | link | close
 thomctl config                               # show resolved config
 thomctl llm                                  # print the agent-facing guide
@@ -151,12 +151,17 @@ the current directory's git remote (or `gh repo set-default`). Run
 thomctl prd create --title "RC.report" --body-file prd.md
 # → PROJ-742
 
-thomctl prd list                                    # all PRDs in the project
-thomctl prd list --label engine --status BACKLOG    # filtered
+thomctl prd list                                    # open PRDs only (completed hidden by default)
+thomctl prd list --all                              # incl. completed
+thomctl prd list --label engine --status BACKLOG    # filtered (explicit --status overrides --all)
 thomctl prd list --json                             # machine-readable
 
 thomctl prd view PROJ-742          # human-readable, description rendered to plain text
 thomctl prd view PROJ-742 --json
+
+thomctl prd issues PROJ-742        # list sub-issues of a PRD (open only by default)
+thomctl prd issues PROJ-742 --afk  # AFK-ready slices only
+thomctl prd issues PROJ-742 --all  # include completed slices
 ```
 
 ### Sub-issues (tracer-bullet slices)
@@ -166,11 +171,13 @@ thomctl prd view PROJ-742 --json
 thomctl issue create --parent PROJ-742 --title "Wire schema" --body-file slice1.md --afk
 thomctl issue create --parent PROJ-742 --title "Pick storage" --body-file slice2.md --hitl
 
-# Listing is project-wide by default; --parent scopes to one PRD.
-thomctl issue list --parent PROJ-742          # all slices of one PRD
+# Listing is project-wide by default; --parent scopes to one PRD. Completed
+# slices are hidden by default — pass --all to include them.
+thomctl issue list --parent PROJ-742          # open slices of one PRD
+thomctl issue list --parent PROJ-742 --all    # incl. completed
 thomctl issue list --parent PROJ-742 --afk    # AFK-ready ones
 thomctl issue list --parent PROJ-742 --hitl   # HITL ones
-thomctl issue list --label needs-triage      # project-wide, used by triage
+thomctl issue list --label needs-triage       # project-wide, used by triage
 thomctl issue view PROJ-743 --json
 ```
 

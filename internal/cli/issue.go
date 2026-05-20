@@ -118,11 +118,12 @@ func issueListCmd() *cobra.Command {
 		limit   int
 		hitl    bool
 		afk     bool
+		all     bool
 		jsonOut bool
 	)
 	c := &cobra.Command{
 		Use:   "list",
-		Short: "List sub-issues. Pass --parent KEY to scope to one PRD, omit for project-wide (used by triage).",
+		Short: "List sub-issues. Pass --parent KEY to scope to one PRD, omit for project-wide (used by triage). Completed issues hidden by default.",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if hitl && afk {
 				return errors.New("--hitl and --afk are mutually exclusive")
@@ -138,9 +139,10 @@ func issueListCmd() *cobra.Command {
 				return err
 			}
 			issues, err := be.ListSubissues(parent, backend.ListOpts{
-				Labels: labels,
-				Status: status,
-				Limit:  limit,
+				Labels:        labels,
+				Status:        status,
+				Limit:         limit,
+				IncludeClosed: all,
 			})
 			if err != nil {
 				return err
@@ -154,10 +156,11 @@ func issueListCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&parent, "parent", "", "Parent PRD key. Omit for project-wide listing.")
 	c.Flags().StringSliceVar(&labels, "label", nil, "Filter by label (repeatable).")
-	c.Flags().StringVar(&status, "status", "", "Filter by status.")
+	c.Flags().StringVar(&status, "status", "", "Filter by status. Overrides --all.")
 	c.Flags().IntVar(&limit, "limit", 0, "Max results. 0 = paginate all.")
 	c.Flags().BoolVar(&hitl, "hitl", false, "Shortcut for --label hitl.")
 	c.Flags().BoolVar(&afk, "afk", false, "Shortcut for --label afk.")
+	c.Flags().BoolVar(&all, "all", false, "Include completed issues. Off by default.")
 	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
 	return c
 }

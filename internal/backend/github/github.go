@@ -71,7 +71,7 @@ func (b *Backend) ListPRDs(opts backend.ListOpts) ([]backend.Issue, error) {
 	for _, l := range opts.Labels {
 		args = append(args, "--label", l)
 	}
-	args = append(args, "--state", mapState(opts.Status))
+	args = append(args, "--state", chooseState(opts))
 	args = append(args, "--limit", listLimit(opts.Limit))
 	out, err := b.run(args...)
 	if err != nil {
@@ -141,7 +141,7 @@ func (b *Backend) listProjectWide(opts backend.ListOpts) ([]backend.Issue, error
 	for _, l := range opts.Labels {
 		args = append(args, "--label", l)
 	}
-	args = append(args, "--state", mapState(opts.Status))
+	args = append(args, "--state", chooseState(opts))
 	args = append(args, "--limit", listLimit(opts.Limit))
 	out, err := b.run(args...)
 	if err != nil {
@@ -659,8 +659,8 @@ func numberFromURL(url string) (int, error) {
 }
 
 // mapState turns the user's status filter into a `gh issue list --state` value.
-// Empty means "no filter" → "all", matching the Jira backend's behavior of
-// returning every state when --status is not passed.
+// Empty means "no filter" → "all"; chooseState decides whether the empty case
+// should fall back to "open" (when IncludeClosed is false).
 func mapState(status string) string {
 	switch strings.ToLower(strings.TrimSpace(status)) {
 	case "", "all", "any":
@@ -673,6 +673,18 @@ func mapState(status string) string {
 		// Unknown filter value; let gh tell the user.
 		return status
 	}
+}
+
+// chooseState picks the `--state` arg from a ListOpts. Explicit Status wins;
+// otherwise IncludeClosed=false hides closed issues (the default).
+func chooseState(opts backend.ListOpts) string {
+	if opts.Status != "" {
+		return mapState(opts.Status)
+	}
+	if opts.IncludeClosed {
+		return "all"
+	}
+	return "open"
 }
 
 func listLimit(limit int) string {
@@ -736,6 +748,8 @@ func matchesFilters(issue backend.Issue, opts backend.ListOpts) bool {
 		if want != "all" && !strings.EqualFold(issue.Status, want) {
 			return false
 		}
+	} else if !opts.IncludeClosed && strings.EqualFold(issue.Status, "closed") {
+		return false
 	}
 	if len(opts.Labels) > 0 {
 		have := make(map[string]struct{}, len(issue.Labels))

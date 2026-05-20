@@ -61,26 +61,38 @@ Override with `--assignee EMAIL` or unassign with `--assignee ''`.
 
 ### List PRDs
 
+Completed PRDs are hidden by default; pass `--all` to include them.
+
 ```sh
-thomctl prd list                          # all PRDs in the project
+thomctl prd list                          # open PRDs only
+thomctl prd list --all                    # incl. completed
 thomctl prd list --label engine           # AND-filter by label
-thomctl prd list --status "In Progress"
+thomctl prd list --status "In Progress"   # exact status (overrides --all)
 thomctl prd list --json                   # machine-readable
 ```
 
 ### List sub-issues
 
+Two equivalent surfaces. `prd issues <KEY>` is the ergonomic positional
+form; `issue list --parent <KEY>` is the long form (and the one to use
+when you also need `--parent` to be empty for project-wide queries).
+Both hide completed slices by default — pass `--all` to include them.
+
 ```sh
-thomctl issue list --parent OPE-742               # all slices of one PRD
-thomctl issue list --parent OPE-742 --afk         # only the AFK-ready ones
-thomctl issue list --parent OPE-742 --hitl        # only the HITL ones
+thomctl prd issues OPE-742                        # all open slices of one PRD
+thomctl prd issues OPE-742 --afk                  # only the AFK-ready ones
+thomctl prd issues OPE-742 --hitl                 # only the HITL ones
+thomctl prd issues OPE-742 --all --json           # include completed, JSON
+
+thomctl issue list --parent OPE-742               # same as `prd issues OPE-742`
 thomctl issue list --label needs-triage           # project-wide (no --parent) — used by triage
 thomctl issue list --parent OPE-742 --status BACKLOG --json
 ```
 
 Output includes a `MODE` column derived from `hitl` / `afk` labels.
-`--parent` is optional. Without it, lists all sub-issue-type items across the
-project — that's how the `triage` skill finds work by label.
+`--parent` is optional on `issue list`. Without it, lists all
+sub-issue-type items across the project — that's how the `triage` skill
+finds work by label.
 
 ### Read an issue
 

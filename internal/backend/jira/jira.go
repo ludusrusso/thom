@@ -52,6 +52,8 @@ func (b *Backend) ListPRDs(opts backend.ListOpts) ([]backend.Issue, error) {
 	}
 	if opts.Status != "" {
 		clauses = append(clauses, fmt.Sprintf("status = %s", quote(opts.Status)))
+	} else if !opts.IncludeClosed {
+		clauses = append(clauses, "statusCategory != Done")
 	}
 	return b.search(strings.Join(clauses, " AND ")+" ORDER BY updated DESC", opts.Limit)
 }
@@ -71,6 +73,8 @@ func (b *Backend) ListSubissues(parentKey string, opts backend.ListOpts) ([]back
 	}
 	if opts.Status != "" {
 		clauses = append(clauses, fmt.Sprintf("status = %s", quote(opts.Status)))
+	} else if !opts.IncludeClosed {
+		clauses = append(clauses, "statusCategory != Done")
 	}
 	return b.search(strings.Join(clauses, " AND ")+" ORDER BY key ASC", opts.Limit)
 }

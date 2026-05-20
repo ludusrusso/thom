@@ -113,18 +113,29 @@ OPE-743") — the link makes it machine-queryable too.
 
 ### List
 
-```sh
-thomctl prd list                          # all PRDs in the project
-thomctl prd list --status BACKLOG --json  # filter + JSON
+**Completed items are hidden by default.** Every list command (`prd list`,
+`issue list`, `prd issues`) drops items whose status is in the tracker's
+"Done" category (Jira: `statusCategory = Done`; GitHub: `state = closed`).
+Pass `--all` to include them, or pass `--status <name>` to filter exactly
+— explicit status overrides `--all`.
 
-thomctl issue list --parent OPE-742       # all slices of one PRD
-thomctl issue list --parent OPE-742 --afk # only the AFK-ready ones
-thomctl issue list --label needs-triage   # project-wide, for triage workflows
-thomctl issue list --json                 # machine output
+```sh
+thomctl prd list                            # open PRDs only
+thomctl prd list --all                      # include completed ones
+thomctl prd list --status BACKLOG --json    # exact status + JSON
+
+thomctl prd issues OPE-742                  # open sub-issues of one PRD
+thomctl prd issues OPE-742 --afk            # AFK-ready slices only
+thomctl prd issues OPE-742 --all --json     # include completed slices, JSON
+
+thomctl issue list --parent OPE-742         # same data as `prd issues OPE-742`
+thomctl issue list --label needs-triage     # project-wide, for triage workflows
+thomctl issue list --all --json             # machine output incl. completed
 ```
 
-`--parent` is optional. Without it, lists all sub-issue-type items across
-the project — used by `triage` to surface labelled work.
+`prd issues <KEY>` is the ergonomic alias for `issue list --parent <KEY>`.
+Use it when you have a PRD key and want its slices; use `issue list`
+(no `--parent`) for project-wide triage queries.
 
 The list output shows a `MODE` column (`HITL` / `AFK` / empty) so you can
 eyeball the state at a glance. JSON output includes the full `labels` array.

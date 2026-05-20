@@ -34,6 +34,11 @@ type ListOpts struct {
 	Labels []string // AND-matched
 	Status string   // tracker-native status string; empty = any
 	Limit  int      // 0 = backend default
+
+	// IncludeClosed: when false (default) and Status is empty, list
+	// operations exclude completed/closed items. Explicit Status takes
+	// precedence — passing Status="Done" returns Done items regardless.
+	IncludeClosed bool
 }
 
 // Link is one directed relationship between two issues. Direction is "in"
