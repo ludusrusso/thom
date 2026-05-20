@@ -1,8 +1,10 @@
-// Command thomctl is the RedCarbon issue-tracker wrapper. It exposes a stable,
-// tracker-agnostic surface (PRDs and sub-issues) so agent skills don't have to
-// learn the underlying tracker's API.
+// Command thomctl is a tracker-agnostic issue-tracker wrapper. It exposes a
+// stable surface (PRDs and sub-issues) so agent skills don't have to learn
+// the underlying tracker's API.
 //
-// Today the only backend is Jira (via the Atlassian `acli` CLI).
+// Supported backends: Jira (via the Atlassian `acli` CLI) and GitHub (via
+// the `gh` CLI). Select with `backend: jira` or `backend: github` in
+// `.thomctl.yaml`.
 package main
 
 import (

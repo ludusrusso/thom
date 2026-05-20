@@ -1,21 +1,67 @@
 # Agent guide: `thomctl`
 
-You are an LLM agent operating on a RedCarbon repo whose issue tracker is
-Jira. **Use `thomctl` for every PRD and sub-issue operation.** Do NOT shell out
-to `acli` or write ADF JSON by hand — `thomctl` accepts markdown and handles the
-translation.
+You are an LLM agent operating on a repo whose issue tracker is wrapped by
+`thomctl`. **Use `thomctl` for every PRD and sub-issue operation.** Do NOT
+shell out to `acli` / `gh` directly, and do NOT write ADF JSON by hand —
+`thomctl` accepts markdown and handles the translation to the active backend.
 
 ## The 30-second mental model
 
-- A **PRD** is a top-level Epic. Created from a markdown body. Always gets
-  the `PRD` + `ready-for-agent` labels.
-- A **sub-issue** is a Task whose `parent` is a PRD. Each represents a
+- A **PRD** is a top-level parent issue (Jira Epic / GitHub Issue with the
+  `PRD` label). Created from a markdown body. Always gets the `PRD` +
+  `ready-for-agent` labels.
+- A **sub-issue** is a child of a PRD. Each represents a
   *tracer-bullet vertical slice*. Tag it either `--hitl` (needs a human) or
   `--afk` (you can run it). `--afk` also adds `ready-for-agent`.
 - **Labels** are how the `triage` skill drives its state machine. Use
   `thomctl issue label add/remove`. Don't invent new labels.
 - The current user is **auto-assigned** on every create. Pass `--assignee ''`
   to leave unassigned, or `--assignee EMAIL` for someone else.
+
+## Before you start: check the config
+
+`thomctl` is driven by `.thomctl.yaml` at the project root (or any ancestor
+up to `$HOME`, or `$XDG_CONFIG_HOME/thomctl/config.yaml`). **You are
+responsible for making sure this file exists and points at the right
+backend/project** — `thomctl` will not invent values for you. Run this
+first:
+
+```sh
+thomctl config        # prints the resolved config + the file it came from
+```
+
+If the command errors with "config not found" (or the values are wrong for
+this repo), create `.thomctl.yaml` at the repo root before doing anything
+else. Minimal shapes:
+
+```yaml
+# Jira backend
+backend: jira
+prd_label: PRD
+ready_label: ready-for-agent
+default_labels: [engine]       # optional — applied to every new issue
+default_assignee: "@me"        # optional — pass --assignee "" to opt out per call
+jira:
+  project_key: PROJ            # the Jira project key for this repo
+  prd_issue_type: Epic
+  subissue_issue_type: Task
+  close_status: Done           # target status name; for IT locale use "Completata"
+```
+
+```yaml
+# GitHub backend
+backend: github
+prd_label: PRD
+ready_label: ready-for-agent
+default_labels: [engine]
+default_assignee: "@me"
+github: {}                     # repo is resolved by `gh` from the cwd
+```
+
+If you're unsure which backend / project key the repo uses, **ask the
+human** rather than guessing — the project key (Jira) or repo (GitHub) is
+not something you can derive from the codebase. Commit `.thomctl.yaml` so
+the next agent doesn't repeat this step.
 
 ## Cheat sheet
 

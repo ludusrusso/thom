@@ -5,8 +5,9 @@ Issues and PRDs for repos that use this tracker live in **Jira**, but agents
 it wraps Jira behind a small, stable surface that takes markdown as input and
 returns issue keys you can reference.
 
-Drop this file in `docs/agents/issue-tracker.md` of any RedCarbon repo and the
-Pocock skills (`to-prd`, `to-issues`, `triage`) will follow these conventions.
+Drop this file in `docs/agents/issue-tracker.md` of any repo using `thomctl`
+and the Pocock skills (`to-prd`, `to-issues`, `triage`) will follow these
+conventions.
 
 ## Setup
 
