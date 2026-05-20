@@ -1,3 +1,9 @@
+<p align="center">
+  <img src=".assets/logo.png" alt="thomctl logo" width="200">
+</p>
+
+![logo](.assets/logo.png)
+
 # thomctl — a tracker-agnostic issue CLI for autonomous agents
 
 `thomctl` is a small Go binary that wraps an issue tracker (Jira via `acli`
@@ -47,7 +53,7 @@ Markdown goes in; the right ADF, JQL, and Jira workflow calls come out.
 A **ralph** is an autonomous coding loop: an LLM that runs the same small
 prompt over and over against a queue of slices, picking the next ready-for-agent
 item, doing the work, opening a PR, closing the issue, repeating. The pattern
-only pays off when the ralph spends its turns on the *task*, not on
+only pays off when the ralph spends its turns on the _task_, not on
 re-discovering how its tools work.
 
 `thomctl` is the tracker-shaped surface a ralph needs:
@@ -94,13 +100,13 @@ source of truth.
 These are skill conventions, not tracker-specific. They live at the top
 level of `.thomctl.yaml`:
 
-| Field             | Default           | Purpose                                            |
-| ----------------- | ----------------- | -------------------------------------------------- |
-| `backend`         | `jira`            | `jira` or `github`                                 |
-| `prd_label`       | `PRD`             | Label that marks an issue as a PRD                 |
-| `ready_label`     | `ready-for-agent` | Label applied to AFK slices                        |
-| `default_labels`  | (none)            | Labels applied to every new issue                  |
-| `default_assignee`| `@me`             | Auto-assign on create (pass `--assignee ""` to opt out per call) |
+| Field              | Default           | Purpose                                                          |
+| ------------------ | ----------------- | ---------------------------------------------------------------- |
+| `backend`          | `jira`            | `jira` or `github`                                               |
+| `prd_label`        | `PRD`             | Label that marks an issue as a PRD                               |
+| `ready_label`      | `ready-for-agent` | Label applied to AFK slices                                      |
+| `default_labels`   | (none)            | Labels applied to every new issue                                |
+| `default_assignee` | `@me`             | Auto-assign on create (pass `--assignee ""` to opt out per call) |
 
 ### Jira backend
 
@@ -117,11 +123,11 @@ jira:
   project_key: PROJ
   prd_issue_type: Epic
   subissue_issue_type: Task
-  close_status: Done           # target status name (NOT transition name)
+  close_status: Done # target status name (NOT transition name)
 ```
 
 For Italian-localized Jira workflows, set `close_status` to the locale's
-target status name (e.g. `Completata`); see *Known quirks* below.
+target status name (e.g. `Completata`); see _Known quirks_ below.
 
 ### GitHub backend
 
@@ -134,7 +140,7 @@ default_labels:
   - engine
 default_assignee: "@me"
 
-github: {}  # no fields today — the repo is resolved by `gh` from the cwd
+github: {} # no fields today — the repo is resolved by `gh` from the cwd
 ```
 
 The GitHub backend shells out to `gh`, which already knows the repo from
@@ -280,18 +286,18 @@ CONTEXT.md                    # glossary of domain terms (PRD, Sub-issue, HITL, 
   (em) + "thomctl" (code) + "tool" (em), not the invalid em+code combo.
 - **Italian-localized Jira workflows.** On Italian projects the terminal
   status is typically named `Completata` (target status), and the
-  *transition* to get there is named `Completato`. `acli` wants the
+  _transition_ to get there is named `Completato`. `acli` wants the
   **target** name — pass `"Completata"` to `--status` or set
   `close_status = "Completata"` in `.thomctl.yaml`. The same pattern
   applies to any locale where transition and status names differ.
 - **`@me` only resolves on certain acli flags.** `acli workitem create
-  --from-json` silently ignores `--assignee` and rejects `@me` inside the
+--from-json` silently ignores `--assignee` and rejects `@me` inside the
   JSON payload with "User not found". `thomctl` works around this by issuing
   a follow-up `acli workitem assign --assignee @me` after create. End
   result is the same; just be aware the binary does two API calls per
   create when `default_assignee` is set.
 - **`acli link list` drops direction.** When the queried key is on the
-  *outward* side of a link, `acli`'s dedicated `link list` returns
+  _outward_ side of a link, `acli`'s dedicated `link list` returns
   `outwardIssueKey: null`. `thomctl` reads `issuelinks` from `workitem view`
   instead, which exposes both `inwardIssue` and `outwardIssue` cleanly.
 
