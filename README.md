@@ -2,8 +2,6 @@
   <img src=".assets/logo.png" alt="thomctl logo" width="200">
 </p>
 
-![logo](.assets/logo.png)
-
 # thomctl — a tracker-agnostic issue CLI for autonomous agents
 
 `thomctl` is a small Go binary that wraps an issue tracker (Jira via `acli`

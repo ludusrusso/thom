@@ -22,4 +22,9 @@ _Avoid_: Manual, blocked-on-human.
 
 **AFK**:
 A **Sub-issue** that an agent can run away-from-keyboard. Carries `afk` + `ready-for-agent`.
+Also the name of the unattended **Ralph** run mode (`thomctl ralph <prd> --afk`) — same idea, applied to the loop itself.
 _Avoid_: Auto, agent-runnable.
+
+**Ralph**:
+The agent loop that drives a **PRD** to a pull request by repeatedly invoking Claude on its open **Sub-issues** until none remain. Exposed as `thomctl ralph <prd>` (loop), `thomctl ralph <prd> --afk` (loop with streaming output for unattended runs), and `thomctl ralph once <prd>` (single Claude invocation). Reads its prompt from `.thom/ralph/prompt.md`. Today gated on the GitHub **Backend**.
+_Avoid_: Agent, worker, runner.
