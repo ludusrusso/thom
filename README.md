@@ -253,7 +253,6 @@ expected directory structure, then drop in the `thomctl` recipe.
 
 ```
 cmd/thomctl/                  # main() — thin entry point
-cmd/dump-adf/                 # debug: markdown file → ADF JSON, for inspection
 internal/cli/                 # cobra command tree (root, prd, issue, link, config, llm)
 internal/cli/llm_guide.md     # embedded agent-facing usage doc
 internal/config/              # .thomctl.yaml loader (yaml-only)
