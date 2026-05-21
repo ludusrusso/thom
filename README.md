@@ -20,6 +20,8 @@ on the agent's behalf:
 ```
 thomctl prd    create | list | view | issues
 thomctl issue  create | list | view | comment | label | link | close
+thomctl ralph  <PRD> [--afk] | once <PRD> | clean
+thomctl init                                 # scaffold .thom/ and migrate legacy config
 thomctl config                               # show resolved config
 thomctl llm                                  # print the agent-facing guide
 ```
@@ -70,7 +72,7 @@ re-discovering how its tools work.
   `thomctl llm` once and is done.
 - **Stable across trackers.** Migrating a project from Jira to GitHub
   doesn't change the ralph's prompt. Flip `backend: jira` to
-  `backend: github` in `.thomctl.yaml` and the same skills keep working.
+  `backend: github` in `.thom/config.yaml` and the same skills keep working.
 
 ## Install
 
@@ -85,18 +87,22 @@ already done.
 
 ## Configure
 
-`thomctl` reads `.thomctl.yaml` from the closest ancestor of the current
+`thomctl` reads `.thom/config.yaml` from the closest ancestor of the current
 directory (stopping at `$HOME`), or `$XDG_CONFIG_HOME/thomctl/config.yaml`.
 Override the file path with `$THOMCTL_CONFIG`. **All other settings live in
 yaml** — there are no value-override env vars; the config file is the single
 source of truth.
+
+The legacy `.thomctl.yaml` at the repo root is still read for back-compat;
+`thomctl` warns once and points at `thomctl init`, which migrates the file
+in place with `os.Rename`. Remove the warning by running `thomctl init`.
 
 `thomctl config` prints the resolved values and the file they came from.
 
 ### Shared knobs (any backend)
 
 These are skill conventions, not tracker-specific. They live at the top
-level of `.thomctl.yaml`:
+level of `.thom/config.yaml`:
 
 | Field              | Default           | Purpose                                                          |
 | ------------------ | ----------------- | ---------------------------------------------------------------- |
@@ -224,6 +230,44 @@ thomctl issue close PROJ-743 --status "Annullato"       # override (e.g. cancell
 `close` verifies the status actually changed — if the Jira workflow doesn't
 permit the transition, you get an error rather than a silent no-op.
 
+### Ralph (the loop)
+
+`thomctl ralph <PRD>` is the autonomous loop itself, embedded in the CLI:
+it pre-flights the worktree (clean tree, not detached HEAD), branches
+`ralph/<PRD>` off whatever branch you ran it from at
+`.worktrees/ralph/<PRD>`, loops Claude until no open sub-issues remain (or
+two iterations make no progress), then drafts a PR title + body with Claude
+and opens it via `gh pr create --base <launching-branch>` — so a Ralph run
+from `v3-beta` lands its PR against `v3-beta`, not `main`.
+
+```sh
+thomctl init                          # scaffold .thom/ + .thom/ralph/{prompt.md,settings.json}
+thomctl ralph 742                     # the loop — interactive Claude attached to TTY
+thomctl ralph 742 --afk               # streaming output for unattended runs (tmux/nohup)
+thomctl ralph 742 --force             # skip clean-tree + detached-HEAD pre-flight
+thomctl ralph once 742                # one Claude invocation; no worktree, no PR (debugging)
+thomctl ralph clean                   # GC every .worktrees/ralph/* (branches are kept)
+```
+
+Issue tracker and code host are independent: the loop's sub-issue predicate
+goes through the configured Backend (Jira or GitHub), and the PR step
+always shells out to `gh`. Jira-tracked + GitHub-hosted is a fully supported
+combination — the PR body's "Closes OPE-742" reads as a Jira reference; the
+loop closes the Jira issues itself via `thomctl issue close` from inside
+the prompt.
+
+Tunable bits:
+
+- `.thom/ralph/prompt.md` — the loop prompt. `{{PRD}}` is substituted. Edit
+  to teach Claude project-specific workflow steps. Scaffolded from an
+  embedded default on first `thomctl init` (or on the first `ralph` run that
+  finds the file missing).
+- `.thom/ralph/settings.json` — Claude permissions (`Edit`, `Write`, `Read`,
+  `Bash(*)`, …). Same shape as `claude --settings`.
+- The PR-drafting prompt is **embedded only**, not user-overridable — its
+  inputs (PRD title/body, resolved sub-issues, commit log) and output
+  contract (title `\n` `---` `\n` body) are mechanical.
+
 ### Self-documenting
 
 ```sh
@@ -259,7 +303,10 @@ expected directory structure, then drop in the `thomctl` recipe.
 cmd/thomctl/                  # main() — thin entry point
 internal/cli/                 # cobra command tree (root, prd, issue, link, config, llm)
 internal/cli/llm_guide.md     # embedded agent-facing usage doc
-internal/config/              # .thomctl.yaml loader (yaml-only)
+internal/config/              # .thom/config.yaml loader (yaml-only; legacy .thomctl.yaml fallback)
+internal/cli/init.go          # `thomctl init` — scaffold .thom/ + migrate legacy config
+internal/ralph/               # the Ralph loop: worktree mgmt, claude invocation, PR drafting
+internal/ralph/defaults/      # embedded prompt.md, pr-prompt.md, settings.json
 internal/adf/                 # markdown → ADF (goldmark-based)
 internal/adf/adf_test.go      # regression tests for ADF edge cases
 internal/backend/
@@ -286,7 +333,7 @@ CONTEXT.md                    # glossary of domain terms (PRD, Sub-issue, HITL, 
   status is typically named `Completata` (target status), and the
   _transition_ to get there is named `Completato`. `acli` wants the
   **target** name — pass `"Completata"` to `--status` or set
-  `close_status = "Completata"` in `.thomctl.yaml`. The same pattern
+  `close_status = "Completata"` in `.thom/config.yaml`. The same pattern
   applies to any locale where transition and status names differ.
 - **`@me` only resolves on certain acli flags.** `acli workitem create
 --from-json` silently ignores `--assignee` and rejects `@me` inside the
@@ -311,7 +358,8 @@ CONTEXT.md                    # glossary of domain terms (PRD, Sub-issue, HITL, 
 - [x] Jira backend: PRD + sub-issue lifecycle, links, triage labels, close
 - [x] GitHub backend: same surface via `gh` + native sub-issues + dependencies
 - [x] Markdown → ADF (CommonMark via goldmark, with `code` mark filtering)
-- [x] Project-level `.thomctl.yaml` (yaml-only; no value-override env vars)
+- [x] Project-level `.thom/config.yaml` (yaml-only; no value-override env vars; legacy `.thomctl.yaml` fallback)
+- [x] Built-in Ralph loop (`thomctl ralph`, `--afk`, `once`, `clean`) — GitHub backend
 - [x] HITL / AFK first-class flags
 - [x] Auto-assign current user on create (`default_assignee = "@me"`)
 - [x] Embedded agent guide (`thomctl llm`)

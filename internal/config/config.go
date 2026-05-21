@@ -1,10 +1,12 @@
-// Package config loads thomctl configuration from .thomctl.yaml.
+// Package config loads thomctl configuration from .thom/config.yaml.
 //
 // Search order:
 //  1. $THOMCTL_CONFIG if set (file path)
-//  2. .thomctl.yaml walking up from the current working directory to the
+//  2. .thom/config.yaml walking up from the current working directory to the
 //     user's home directory (inclusive)
-//  3. $XDG_CONFIG_HOME/thomctl/config.yaml (or ~/.config/thomctl/config.yaml)
+//  3. Legacy .thomctl.yaml at the same path (prints a stderr deprecation
+//     hint; remove once all repos have run `thomctl init`)
+//  4. $XDG_CONFIG_HOME/thomctl/config.yaml (or ~/.config/thomctl/config.yaml)
 //
 // All configuration lives in yaml; there are no value-override env vars.
 package config
@@ -17,6 +19,16 @@ import (
 
 	"gopkg.in/yaml.v3"
 )
+
+// LegacyConfigName is the pre-.thom/ filename we still read for back-compat.
+const LegacyConfigName = ".thomctl.yaml"
+
+// ConfigName is the current filename inside .thom/.
+const ConfigName = "config.yaml"
+
+// ConfigDir is the project-local directory that holds config.yaml and the
+// per-feature subdirectories (ralph/, ...).
+const ConfigDir = ".thom"
 
 type Config struct {
 	Backend string `yaml:"backend"`
@@ -107,9 +119,17 @@ func findConfigFile() (string, error) {
 
 	dir := cwd
 	for {
-		candidate := filepath.Join(dir, ".thomctl.yaml")
-		if _, err := os.Stat(candidate); err == nil {
-			return candidate, nil
+		// Prefer the new location.
+		if path := filepath.Join(dir, ConfigDir, ConfigName); statable(path) {
+			return path, nil
+		}
+		// Fall back to the legacy file. Warn once so users migrate.
+		if path := filepath.Join(dir, LegacyConfigName); statable(path) {
+			fmt.Fprintf(os.Stderr,
+				"thomctl: %s is deprecated, run `thomctl init` to migrate to %s/%s\n",
+				path, ConfigDir, ConfigName,
+			)
+			return path, nil
 		}
 		parent := filepath.Dir(dir)
 		if parent == dir {
@@ -128,9 +148,14 @@ func findConfigFile() (string, error) {
 	}
 	if xdg != "" {
 		candidate := filepath.Join(xdg, "thomctl", "config.yaml")
-		if _, err := os.Stat(candidate); err == nil {
+		if statable(candidate) {
 			return candidate, nil
 		}
 	}
 	return "", nil
+}
+
+func statable(path string) bool {
+	_, err := os.Stat(path)
+	return err == nil
 }

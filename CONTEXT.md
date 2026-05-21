@@ -26,5 +26,5 @@ Also the name of the unattended **Ralph** run mode (`thomctl ralph <prd> --afk`)
 _Avoid_: Auto, agent-runnable.
 
 **Ralph**:
-The agent loop that drives a **PRD** to a pull request by repeatedly invoking Claude on its open **Sub-issues** until none remain. Exposed as `thomctl ralph <prd>` (loop), `thomctl ralph <prd> --afk` (loop with streaming output for unattended runs), and `thomctl ralph once <prd>` (single Claude invocation). Reads its prompt from `.thom/ralph/prompt.md`. Today gated on the GitHub **Backend**.
+The agent loop that drives a **PRD** to a pull request by repeatedly invoking Claude on its open **Sub-issues** until none remain. Exposed as `thomctl ralph <prd>` (loop), `thomctl ralph <prd> --afk` (loop with streaming output for unattended runs), and `thomctl ralph once <prd>` (single Claude invocation). Reads its prompt from `.thom/ralph/prompt.md`. Backend-agnostic for issue tracking; the PR step always shells out to `gh` because the code host is GitHub independent of where issues live.
 _Avoid_: Agent, worker, runner.
