@@ -45,8 +45,11 @@ func issueCreateCmd() *cobra.Command {
 			"away-from-keyboard (auto-adds the ready-for-agent label). Use --hitl for\n" +
 			"slices that need a human first (no ready-for-agent — the slice is blocked\n" +
 			"on a decision or review).",
-		Example: "  thomctl issue create --parent OPE-123 --title \"Wire schema\" --body-file slice.md --afk\n" +
-			"  thomctl issue create --parent OPE-123 --title \"Pick storage\" --body-file slice.md --hitl",
+		Example: "  cat <<'EOF' | thomctl issue create --parent OPE-123 --title \"Wire schema\" -f - --afk\n" +
+			"  ## Slice\n" +
+			"  ...\n" +
+			"  EOF\n" +
+			"  thomctl issue create --parent OPE-123 --title \"Pick storage\" -f slice.md --hitl",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if parent == "" {
 				return errors.New("--parent is required")
@@ -101,7 +104,7 @@ func issueCreateCmd() *cobra.Command {
 	c.Flags().StringVar(&parent, "parent", "", "Parent PRD key (required).")
 	c.Flags().StringVar(&title, "title", "", "Sub-issue title (required).")
 	c.Flags().StringVar(&body, "body", "", "Body markdown. Mutually exclusive with --body-file.")
-	c.Flags().StringVar(&bodyFile, "body-file", "", "Path to markdown file ('-' for stdin).")
+	c.Flags().StringVarP(&bodyFile, "body-file", "f", "", "Path to markdown file ('-' for stdin).")
 	c.Flags().StringSliceVar(&labels, "label", nil, "Extra labels (repeatable).")
 	c.Flags().BoolVar(&hitl, "hitl", false, "Mark as needing human interaction (adds 'hitl' label, no ready-for-agent).")
 	c.Flags().BoolVar(&afk, "afk", false, "Mark as agent-runnable (adds 'afk' + ready-for-agent labels).")
@@ -216,7 +219,7 @@ func issueCommentCmd() *cobra.Command {
 		},
 	}
 	c.Flags().StringVar(&body, "body", "", "Comment markdown.")
-	c.Flags().StringVar(&bodyFile, "body-file", "", "Path to markdown file ('-' for stdin).")
+	c.Flags().StringVarP(&bodyFile, "body-file", "f", "", "Path to markdown file ('-' for stdin).")
 	return c
 }
 
@@ -277,6 +280,6 @@ func issueCloseCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&status, "status", "", "Target status (defaults to jira.close_status from config).")
 	c.Flags().StringVar(&comment, "comment", "", "Closing comment (markdown).")
-	c.Flags().StringVar(&commentFile, "comment-file", "", "Path to markdown file ('-' for stdin).")
+	c.Flags().StringVarP(&commentFile, "comment-file", "f", "", "Path to markdown file ('-' for stdin).")
 	return c
 }

@@ -30,8 +30,11 @@ func prdCreateCmd() *cobra.Command {
 	c := &cobra.Command{
 		Use:   "create",
 		Short: "Create a new PRD. Body is markdown; it is translated to the tracker's native format.",
-		Example: "  thomctl prd create --title \"Improve onboarding\" --body-file prd.md --label engine\n" +
-			"  cat prd.md | thomctl prd create --title \"...\" --body-file -",
+		Example: "  cat <<'EOF' | thomctl prd create --title \"Improve onboarding\" -f -\n" +
+			"  ## Goal\n" +
+			"  ...\n" +
+			"  EOF\n" +
+			"  thomctl prd create --title \"Improve onboarding\" -f prd.md --label engine",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if title == "" {
 				return errors.New("--title is required")
@@ -69,7 +72,7 @@ func prdCreateCmd() *cobra.Command {
 	}
 	c.Flags().StringVar(&title, "title", "", "PRD title (required)")
 	c.Flags().StringVar(&body, "body", "", "PRD body (markdown). Mutually exclusive with --body-file.")
-	c.Flags().StringVar(&bodyFile, "body-file", "", "Path to markdown file ('-' for stdin). Mutually exclusive with --body.")
+	c.Flags().StringVarP(&bodyFile, "body-file", "f", "", "Path to markdown file ('-' for stdin). Mutually exclusive with --body.")
 	c.Flags().StringSliceVar(&labels, "label", nil, "Extra labels to apply (repeatable).")
 	c.Flags().StringVar(&assignee, "assignee", "", "Assignee email or '@me'. Defaults to default_assignee from config. Pass '' explicitly to leave unassigned.")
 	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
