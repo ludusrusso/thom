@@ -7,8 +7,28 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/term"
+
 	"github.com/ludusrusso/thom/internal/backend"
 )
+
+// linkify wraps text in an OSC 8 hyperlink escape so modern terminals render
+// it as a clickable link. Falls back to plain text when stdout isn't a TTY,
+// NO_COLOR is set (https://no-color.org), or no URL is available. The visible
+// width of the wrapped string matches the plain text, so callers can compute
+// column widths from the raw key.
+func linkify(text, url string) string {
+	if url == "" {
+		return text
+	}
+	if os.Getenv("NO_COLOR") != "" {
+		return text
+	}
+	if !term.IsTerminal(int(os.Stdout.Fd())) {
+		return text
+	}
+	return "\x1b]8;;" + url + "\x1b\\" + text + "\x1b]8;;\x1b\\"
+}
 
 // hitl/afk labels are the Pocock `to-issues` convention for marking
 // tracer-bullet slices.
@@ -68,11 +88,13 @@ func emitIssueTable(issues []backend.Issue) {
 	maxKey, maxStatus, maxType, maxTag, maxLabels :=
 		len("KEY"), len("STATUS"), len("TYPE"), len("MODE"), len("LABELS")
 	rows := make([][6]string, 0, len(issues))
+	urls := make([]string, 0, len(issues))
 	for _, i := range issues {
 		mode := hitlAfkTag(i.Labels)
 		labels := strings.Join(otherLabels(i.Labels), ", ")
 		row := [6]string{i.Key, i.Type, i.Status, mode, labels, i.Summary}
 		rows = append(rows, row)
+		urls = append(urls, i.URL)
 		if l := len(row[0]); l > maxKey {
 			maxKey = l
 		}
@@ -92,9 +114,12 @@ func emitIssueTable(issues []backend.Issue) {
 	fmt.Printf("%-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
 		maxKey, "KEY", maxType, "TYPE", maxStatus, "STATUS",
 		maxTag, "MODE", maxLabels, "LABELS", "SUMMARY")
-	for _, r := range rows {
-		fmt.Printf("%-*s  %-*s  %-*s  %-*s  %-*s  %s\n",
-			maxKey, r[0], maxType, r[1], maxStatus, r[2],
+	for idx, r := range rows {
+		// Pad to maxKey first, THEN wrap with OSC 8 — otherwise the escape
+		// bytes count toward the padded width and the columns shift right.
+		keyCell := linkify(fmt.Sprintf("%-*s", maxKey, r[0]), urls[idx])
+		fmt.Printf("%s  %-*s  %-*s  %-*s  %-*s  %s\n",
+			keyCell, maxType, r[1], maxStatus, r[2],
 			maxTag, r[3], maxLabels, r[4], r[5])
 	}
 }
@@ -113,12 +138,12 @@ func otherLabels(labels []string) []string {
 	return out
 }
 
-func emitIssueDetail(i backend.Issue) {
-	fmt.Printf("Key:      %s\n", i.Key)
+func emitIssueDetail(i backend.Issue, be backend.Backend) {
+	fmt.Printf("Key:      %s\n", linkify(i.Key, i.URL))
 	fmt.Printf("Type:     %s\n", i.Type)
 	fmt.Printf("Status:   %s\n", i.Status)
 	if i.ParentKey != "" {
-		fmt.Printf("Parent:   %s\n", i.ParentKey)
+		fmt.Printf("Parent:   %s\n", linkify(i.ParentKey, be.IssueURL(i.ParentKey)))
 	}
 	if i.Assignee != "" {
 		fmt.Printf("Assignee: %s\n", i.Assignee)

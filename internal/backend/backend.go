@@ -95,4 +95,10 @@ type Backend interface {
 
 	// RemoveLink deletes a single link by its tracker-native ID.
 	RemoveLink(linkID string) error
+
+	// IssueURL returns the browser URL for an issue key without fetching it.
+	// Used to linkify keys we don't already have an Issue for (e.g. a parent
+	// key shown in detail view). Returns "" when no URL can be derived
+	// (Jira: site unset; GitHub: repo slug not resolvable; key malformed).
+	IssueURL(key string) string
 }

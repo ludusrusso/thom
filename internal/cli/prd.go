@@ -194,7 +194,7 @@ func prdViewCmd() *cobra.Command {
 			if jsonOut {
 				return emitJSON(issue)
 			}
-			emitIssueDetail(issue)
+			emitIssueDetail(issue, be)
 			return nil
 		},
 	}

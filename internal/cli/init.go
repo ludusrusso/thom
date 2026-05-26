@@ -28,6 +28,7 @@ backend: github
 #   prd_issue_type: Epic
 #   subissue_issue_type: Task
 #   close_status: Done
+#   site: https://acme.atlassian.net  # optional; enables clickable KEYs in list/view
 
 prd_label: PRD
 ready_label: ready-for-agent

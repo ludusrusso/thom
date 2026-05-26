@@ -81,6 +81,7 @@ func configCmd() *cobra.Command {
 				fmt.Printf("jira.prd_issue_type      = %s\n", cfg.Jira.PRDIssueType)
 				fmt.Printf("jira.subissue_issue_type = %s\n", cfg.Jira.SubissueIssueType)
 				fmt.Printf("jira.close_status        = %s\n", cfg.Jira.CloseStatus)
+				fmt.Printf("jira.site                = %s\n", cfg.Jira.Site)
 			case "github":
 				fmt.Printf("github                   = (repo resolved from cwd by gh)\n")
 			}

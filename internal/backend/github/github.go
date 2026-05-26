@@ -412,6 +412,21 @@ func (b *Backend) databaseID(slug string, number int) (int64, error) {
 	return id, nil
 }
 
+// IssueURL synthesises https://github.com/<slug>/issues/<num>. Returns "" if
+// the slug can't be resolved or the key isn't a valid issue number; callers
+// linkify only when a non-empty URL comes back.
+func (b *Backend) IssueURL(key string) string {
+	num, err := normalizeKey(key)
+	if err != nil {
+		return ""
+	}
+	slug, err := b.slug()
+	if err != nil {
+		return ""
+	}
+	return fmt.Sprintf("https://github.com/%s/issues/%d", slug, num)
+}
+
 func (b *Backend) slug() (string, error) {
 	if b.repoSlug != "" {
 		return b.repoSlug, nil

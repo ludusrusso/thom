@@ -90,7 +90,7 @@ func (b *Backend) View(key string) (backend.Issue, error) {
 	if err := json.Unmarshal(out, &raw); err != nil {
 		return backend.Issue{}, fmt.Errorf("decode view: %w", err)
 	}
-	return decodeIssue(raw), nil
+	return b.decodeIssue(raw), nil
 }
 
 func (b *Backend) Comment(key, bodyMD string) error {
@@ -311,7 +311,7 @@ func (b *Backend) search(jql string, limit int) ([]backend.Issue, error) {
 	}
 	issues := make([]backend.Issue, 0, len(raw))
 	for _, r := range raw {
-		issues = append(issues, decodeIssue(r))
+		issues = append(issues, b.decodeIssue(r))
 	}
 	return issues, nil
 }
@@ -385,10 +385,18 @@ func quote(s string) string {
 	return `"` + s + `"`
 }
 
+// IssueURL returns <site>/browse/<KEY>, or "" if jira.site is unconfigured.
+func (b *Backend) IssueURL(key string) string {
+	if key == "" || b.cfg.Jira.Site == "" {
+		return ""
+	}
+	return strings.TrimRight(b.cfg.Jira.Site, "/") + "/browse/" + key
+}
+
 // decodeIssue accepts either a flat issue object (as returned by `acli
 // workitem view`) or the search-shaped object with a "fields" sub-object.
 // We merge fields up so the flat-decode path works uniformly.
-func decodeIssue(r map[string]any) backend.Issue {
+func (b *Backend) decodeIssue(r map[string]any) backend.Issue {
 	flat := map[string]any{}
 	for k, v := range r {
 		flat[k] = v
@@ -436,6 +444,7 @@ func decodeIssue(r map[string]any) backend.Issue {
 	} else {
 		issue.Description = getStr(flat, "description")
 	}
+	issue.URL = b.IssueURL(issue.Key)
 	return issue
 }
 

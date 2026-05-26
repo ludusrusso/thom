@@ -52,6 +52,11 @@ type JiraConfig struct {
 	PRDIssueType      string `yaml:"prd_issue_type"`
 	SubissueIssueType string `yaml:"subissue_issue_type"`
 	CloseStatus       string `yaml:"close_status"`
+
+	// Site is the Atlassian instance base URL (e.g. https://acme.atlassian.net).
+	// Used to synthesise issue URLs as <site>/browse/<KEY>. Optional — when
+	// empty, list/view output stays plain (no clickable hyperlinks).
+	Site string `yaml:"site"`
 }
 
 // GithubConfig has no fields today: the repo is resolved by `gh` from the
