@@ -52,6 +52,11 @@ type JiraConfig struct {
 	PRDIssueType      string `yaml:"prd_issue_type"`
 	SubissueIssueType string `yaml:"subissue_issue_type"`
 	CloseStatus       string `yaml:"close_status"`
+	// StartStatus is the target status for `issue start` (in-progress) and
+	// ReviewStatus for `issue review` (awaiting human review). For non-English
+	// Jira workflows override them, e.g. "In corso" / "In revisione".
+	StartStatus  string `yaml:"start_status"`
+	ReviewStatus string `yaml:"review_status"`
 
 	// Site is the Atlassian instance base URL (e.g. https://acme.atlassian.net).
 	// Used to synthesise issue URLs as <site>/browse/<KEY>. Optional — when
@@ -75,6 +80,8 @@ func defaults() Config {
 			PRDIssueType:      "Epic",
 			SubissueIssueType: "Task",
 			CloseStatus:       "Done",
+			StartStatus:       "In Progress",
+			ReviewStatus:      "To Review",
 		},
 	}
 }
