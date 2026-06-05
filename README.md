@@ -128,10 +128,13 @@ jira:
   prd_issue_type: Epic
   subissue_issue_type: Task
   close_status: Done # target status name (NOT transition name)
+  start_status: In Progress # target for `issue start`; IT board e.g. "In corso"
+  review_status: To Review # target for `issue review`; IT board e.g. "In revisione"
 ```
 
-For Italian-localized Jira workflows, set `close_status` to the locale's
-target status name (e.g. `Completata`); see _Known quirks_ below.
+For Italian-localized Jira workflows, set `close_status` / `start_status` /
+`review_status` to the locale's target status names (e.g. `Completata`); see
+_Known quirks_ below.
 
 ### GitHub backend
 
@@ -228,13 +231,20 @@ Closing because the original report is now obsolete."
 thomctl issue label add    PROJ-743 ready-for-agent
 thomctl issue label remove PROJ-743 needs-triage
 
+thomctl issue start  PROJ-743                          # -> in-progress (start_status)
+thomctl issue review PROJ-743 --comment "PR #42 open"  # -> review (review_status)
+thomctl issue transition PROJ-743 --status "To Do"     # -> any arbitrary status
+
 thomctl issue close PROJ-743                            # default close_status from config
 thomctl issue close PROJ-743 --comment "Done in PR #42" # with a closing comment
 thomctl issue close PROJ-743 --status "Annullato"       # override (e.g. cancelled vs done)
 ```
 
-`close` verifies the status actually changed — if the Jira workflow doesn't
-permit the transition, you get an error rather than a silent no-op.
+`start` / `review` are convenience verbs over a configured status (mapping onto
+a To Do → In Progress → To Review → Done board); `transition` takes an arbitrary
+`--status`. All — like `close` — verify the status actually changed, so a
+workflow that doesn't permit the transition yields an error, not a silent no-op.
+GitHub issues are open/closed only, so these are Jira-only (use `close` there).
 
 ### Ralph (the loop)
 

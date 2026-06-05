@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ludusrusso/thom/internal/backend"
+	"github.com/ludusrusso/thom/internal/config"
 )
 
 func issueCmd() *cobra.Command {
@@ -21,6 +22,9 @@ func issueCmd() *cobra.Command {
 		issueCommentCmd(),
 		issueLabelCmd(),
 		issueLinkCmd(),
+		issueStartCmd(),
+		issueReviewCmd(),
+		issueTransitionCmd(),
 		issueCloseCmd(),
 	)
 	return c
@@ -253,6 +257,88 @@ func issueLabelCmd() *cobra.Command {
 		},
 	}
 	c.AddCommand(add, remove)
+	return c
+}
+
+func issueStartCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"start <KEY>",
+		"Transition an issue to the in-progress status (jira.start_status, default \"In Progress\"). Optionally post a comment.",
+		"start_status",
+		func(c config.Config) string { return c.Jira.StartStatus },
+	)
+}
+
+func issueReviewCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"review <KEY>",
+		"Transition an issue to the review status (jira.review_status, default \"To Review\"). Optionally post a comment.",
+		"review_status",
+		func(c config.Config) string { return c.Jira.ReviewStatus },
+	)
+}
+
+// statusTransitionCmd builds a semantic transition subcommand (start/review)
+// that moves an issue to a status pulled from config via pick. cfgKey names the
+// config field, used in the "not configured" error.
+func statusTransitionCmd(use, short, cfgKey string, pick func(config.Config) string) *cobra.Command {
+	var (
+		comment     string
+		commentFile string
+	)
+	c := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			body, err := readBody(comment, commentFile)
+			if err != nil {
+				return err
+			}
+			be, cfg, err := resolveBackend()
+			if err != nil {
+				return err
+			}
+			status := pick(cfg)
+			if status == "" {
+				return fmt.Errorf("no status configured (set jira.%s in your config)", cfgKey)
+			}
+			return be.Transition(args[0], status, body)
+		},
+	}
+	c.Flags().StringVar(&comment, "comment", "", "Comment to post (markdown).")
+	c.Flags().StringVarP(&commentFile, "comment-file", "f", "", "Path to markdown file ('-' for stdin).")
+	return c
+}
+
+func issueTransitionCmd() *cobra.Command {
+	var (
+		status      string
+		comment     string
+		commentFile string
+	)
+	c := &cobra.Command{
+		Use:   "transition <KEY>",
+		Short: "Transition an issue to an arbitrary status (--status). Optionally post a comment.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if status == "" {
+				return errors.New("--status is required")
+			}
+			body, err := readBody(comment, commentFile)
+			if err != nil {
+				return err
+			}
+			be, _, err := resolveBackend()
+			if err != nil {
+				return err
+			}
+			return be.Transition(args[0], status, body)
+		},
+	}
+	c.Flags().StringVar(&status, "status", "", "Target status (tracker-native, required).")
+	c.Flags().StringVar(&comment, "comment", "", "Comment to post (markdown).")
+	c.Flags().StringVarP(&commentFile, "comment-file", "f", "", "Path to markdown file ('-' for stdin).")
 	return c
 }
 

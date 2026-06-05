@@ -243,6 +243,10 @@ func (b *Backend) Close(key, status, comment string) error {
 	return err
 }
 
+func (b *Backend) Transition(key, status, comment string) error {
+	return fmt.Errorf("github issues have no arbitrary statuses (only open/closed): cannot transition %s to %q — use `issue close` to close, or model status via labels/Projects", key, status)
+}
+
 func (b *Backend) ListLinks(key string) ([]backend.Link, error) {
 	n, err := normalizeKey(key)
 	if err != nil {
@@ -559,12 +563,12 @@ func (b *Backend) runGraphQL(query string, vars map[string]string) ([]byte, erro
 
 // ghIssue is the shape `gh issue view/list --json ...` returns.
 type ghIssue struct {
-	Number    int    `json:"number"`
-	Title     string `json:"title"`
-	State     string `json:"state"`
-	Body      string `json:"body,omitempty"`
-	URL       string `json:"url"`
-	Labels    []struct {
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	State  string `json:"state"`
+	Body   string `json:"body,omitempty"`
+	URL    string `json:"url"`
+	Labels []struct {
 		Name string `json:"name"`
 	} `json:"labels"`
 	Assignees []struct {

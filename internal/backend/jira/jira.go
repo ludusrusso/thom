@@ -218,8 +218,26 @@ func (b *Backend) Close(key, status, comment string) error {
 			return err
 		}
 	}
-	// acli's transition silently succeeds even when the target status is not a
-	// valid transition from the current one — so we verify the status changed.
+	return b.transition(key, status)
+}
+
+func (b *Backend) Transition(key, status, comment string) error {
+	if status == "" {
+		return errors.New("no target status given (pass --status)")
+	}
+	if comment != "" {
+		if err := b.Comment(key, comment); err != nil {
+			return err
+		}
+	}
+	return b.transition(key, status)
+}
+
+// transition moves key to status, verifying the change actually took effect.
+// acli's transition silently succeeds even when the target status is not a
+// valid transition from the current one — so we read the status before/after
+// and report a no-op as an error.
+func (b *Backend) transition(key, status string) error {
 	before, err := b.View(key)
 	if err != nil {
 		return err

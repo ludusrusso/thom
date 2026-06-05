@@ -115,6 +115,18 @@ thomctl issue label add    OPE-743 ready-for-agent
 thomctl issue label remove OPE-743 needs-triage
 ```
 
+### Move through the workflow
+
+```sh
+thomctl issue start  OPE-743                           # -> in-progress (jira.start_status)
+thomctl issue review OPE-743 --comment "PR #456 open"  # -> review (jira.review_status)
+thomctl issue transition OPE-743 --status "To Do"      # -> arbitrary status
+```
+
+The afk lifecycle on a 4-column board: `start` on pickup → `review` when the PR
+is open and awaiting a human → `close` on merge. Jira-only (GitHub issues are
+open/closed).
+
 ### Close
 
 ```sh
@@ -153,6 +165,5 @@ later, not for round-tripping a just-created issue.
 ## What thomctl is NOT
 
 - It is not a search interface — for complex JQL use `acli` directly.
-- It does not currently expose attachments, transitions other than "Done",
-  worklog, or sprints.
+- It does not currently expose attachments, worklog, or sprints.
 - It does not edit the issue body after creation. Re-create or comment.

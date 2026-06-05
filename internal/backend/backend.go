@@ -22,11 +22,11 @@ type Issue struct {
 
 // CreateOpts is the input for creating a PRD or sub-issue.
 type CreateOpts struct {
-	Summary    string
-	BodyMD     string
-	Labels     []string
-	ParentKey  string // empty for top-level PRDs
-	Assignee   string // empty = unassigned, "@me" = self
+	Summary   string
+	BodyMD    string
+	Labels    []string
+	ParentKey string // empty for top-level PRDs
+	Assignee  string // empty = unassigned, "@me" = self
 }
 
 // ListOpts filters list operations.
@@ -85,6 +85,12 @@ type Backend interface {
 	// target status; pass empty to use the backend's configured default.
 	// Comment is optional.
 	Close(key, status, comment string) error
+
+	// Transition moves key to an arbitrary tracker-native status (e.g. the
+	// in-progress status). status is required. Comment is optional. Backends
+	// without arbitrary statuses (e.g. GitHub, whose issues are only
+	// open/closed) return an error. Use Close for terminal transitions.
+	Transition(key, status, comment string) error
 
 	// ListLinks returns all issue links involving key.
 	ListLinks(key string) ([]Link, error)

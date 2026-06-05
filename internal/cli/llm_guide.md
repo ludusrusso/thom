@@ -46,6 +46,8 @@ jira:
   prd_issue_type: Epic
   subissue_issue_type: Task
   close_status: Done           # target status name; for IT locale use "Completata"
+  start_status: In Progress    # target for `issue start`; IT board e.g. "In corso"
+  review_status: To Review     # target for `issue review`; IT board e.g. "In revisione"
 ```
 
 ```yaml
@@ -237,6 +239,21 @@ The five canonical triage states are labels: `needs-triage`, `needs-info`,
 `ready-for-agent`, `ready-for-human`, `wontfix`. Apply exactly one state
 label at a time.
 
+### Move through the workflow (start / review / transition)
+
+```sh
+thomctl issue start  OPE-743                           # -> in-progress (jira.start_status, default "In Progress")
+thomctl issue review OPE-743 --comment "PR #42 open"   # -> review (jira.review_status, default "To Review")
+thomctl issue transition OPE-743 --status "To Do"      # -> any arbitrary status
+```
+
+`start` / `review` are convenience verbs over a configured status; `transition`
+takes an arbitrary `--status`. All three verify the status actually changed
+(same check as Close). The afk lifecycle maps onto a 4-column board: `start`
+when you pick up a slice -> `review` when the PR is open and awaiting a human ->
+`close` on merge. GitHub issues have no arbitrary statuses (open/closed only),
+so `start`/`review`/`transition` are Jira-only — on GitHub use `close`.
+
 ### Close
 
 ```sh
@@ -253,7 +270,7 @@ silent no-op.
 
 - Edit an existing issue's body. Re-create or comment instead.
 - Delete issues. Use `acli jira workitem delete` if you really need to.
-- Manage sprints, attachments, worklog, or transitions other than close.
+- Manage sprints, attachments, or worklog.
 - Track activity across comments for "needs re-triage" detection.
 
 ## Gotchas
