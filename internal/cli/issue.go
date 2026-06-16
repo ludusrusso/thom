@@ -7,6 +7,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/ludusrusso/thom/internal/backend"
+	"github.com/ludusrusso/thom/internal/config"
 )
 
 func issueCmd() *cobra.Command {
@@ -16,11 +17,17 @@ func issueCmd() *cobra.Command {
 	}
 	c.AddCommand(
 		issueCreateCmd(),
+		issueEditCmd(),
 		issueListCmd(),
 		issueViewCmd(),
 		issueCommentCmd(),
 		issueLabelCmd(),
 		issueLinkCmd(),
+		issueBacklogCmd(),
+		issueTodoCmd(),
+		issueStartCmd(),
+		issueReviewCmd(),
+		issueTransitionCmd(),
 		issueCloseCmd(),
 	)
 	return c
@@ -109,6 +116,63 @@ func issueCreateCmd() *cobra.Command {
 	c.Flags().BoolVar(&hitl, "hitl", false, "Mark as needing human interaction (adds 'hitl' label, no ready-for-agent).")
 	c.Flags().BoolVar(&afk, "afk", false, "Mark as agent-runnable (adds 'afk' + ready-for-agent labels).")
 	c.Flags().StringVar(&assignee, "assignee", "", "Assignee email or '@me'. Defaults to default_assignee from config. Pass '' explicitly to leave unassigned.")
+	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
+	return c
+}
+
+func issueEditCmd() *cobra.Command {
+	var (
+		title    string
+		body     string
+		bodyFile string
+		jsonOut  bool
+	)
+	c := &cobra.Command{
+		Use:   "edit <KEY>",
+		Short: "Update an issue's title and/or description.",
+		Long: "Update an existing issue's title (--title) and/or description (--body / -f).\n" +
+			"At least one must be given. The description replaces the existing body in full.",
+		Example: "  cat <<'EOF' | thomctl issue edit OPE-123 -f -\n" +
+			"  ## Updated slice\n" +
+			"  ...\n" +
+			"  EOF\n" +
+			"  thomctl issue edit OPE-123 --title \"Wire schema (revised)\"",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var opts backend.EditOpts
+			if cmd.Flags().Changed("title") {
+				opts.Summary = &title
+			}
+			if cmd.Flags().Changed("body") || cmd.Flags().Changed("body-file") {
+				b, err := readBody(body, bodyFile)
+				if err != nil {
+					return err
+				}
+				if b == "" {
+					return errMissingBody
+				}
+				opts.BodyMD = &b
+			}
+			if opts.Summary == nil && opts.BodyMD == nil {
+				return errors.New("nothing to edit: pass --title and/or --body/--body-file")
+			}
+			be, _, err := resolveBackend()
+			if err != nil {
+				return err
+			}
+			if err := be.Edit(args[0], opts); err != nil {
+				return err
+			}
+			if jsonOut {
+				return emitJSON(map[string]string{"key": args[0]})
+			}
+			fmt.Println(args[0])
+			return nil
+		},
+	}
+	c.Flags().StringVar(&title, "title", "", "New title/summary.")
+	c.Flags().StringVar(&body, "body", "", "New description markdown. Mutually exclusive with --body-file.")
+	c.Flags().StringVarP(&bodyFile, "body-file", "f", "", "Path to markdown file ('-' for stdin).")
 	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
 	return c
 }
@@ -253,6 +317,106 @@ func issueLabelCmd() *cobra.Command {
 		},
 	}
 	c.AddCommand(add, remove)
+	return c
+}
+
+func issueBacklogCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"backlog <KEY>",
+		"Transition an issue to the backlog status (jira.backlog_status, default \"Backlog\"). Optionally post a comment.",
+		"backlog_status",
+		func(c config.Config) string { return c.Jira.BacklogStatus },
+	)
+}
+
+func issueTodoCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"todo <KEY>",
+		"Transition an issue to the to-do status (jira.todo_status, default \"To Do\"). Optionally post a comment.",
+		"todo_status",
+		func(c config.Config) string { return c.Jira.TodoStatus },
+	)
+}
+
+func issueStartCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"start <KEY>",
+		"Transition an issue to the in-progress status (jira.start_status, default \"In Progress\"). Optionally post a comment.",
+		"start_status",
+		func(c config.Config) string { return c.Jira.StartStatus },
+	)
+}
+
+func issueReviewCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"review <KEY>",
+		"Transition an issue to the review status (jira.review_status, default \"To Review\"). Optionally post a comment.",
+		"review_status",
+		func(c config.Config) string { return c.Jira.ReviewStatus },
+	)
+}
+
+// statusTransitionCmd builds a semantic transition subcommand (start/review)
+// that moves an issue to a status pulled from config via pick. cfgKey names the
+// config field, used in the "not configured" error.
+func statusTransitionCmd(use, short, cfgKey string, pick func(config.Config) string) *cobra.Command {
+	var (
+		comment     string
+		commentFile string
+	)
+	c := &cobra.Command{
+		Use:   use,
+		Short: short,
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			body, err := readBody(comment, commentFile)
+			if err != nil {
+				return err
+			}
+			be, cfg, err := resolveBackend()
+			if err != nil {
+				return err
+			}
+			status := pick(cfg)
+			if status == "" {
+				return fmt.Errorf("no status configured (set jira.%s in your config)", cfgKey)
+			}
+			return be.Transition(args[0], status, body)
+		},
+	}
+	c.Flags().StringVar(&comment, "comment", "", "Comment to post (markdown).")
+	c.Flags().StringVarP(&commentFile, "comment-file", "f", "", "Path to markdown file ('-' for stdin).")
+	return c
+}
+
+func issueTransitionCmd() *cobra.Command {
+	var (
+		status      string
+		comment     string
+		commentFile string
+	)
+	c := &cobra.Command{
+		Use:   "transition <KEY>",
+		Short: "Transition an issue to an arbitrary status (--status). Optionally post a comment.",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if status == "" {
+				return errors.New("--status is required")
+			}
+			body, err := readBody(comment, commentFile)
+			if err != nil {
+				return err
+			}
+			be, _, err := resolveBackend()
+			if err != nil {
+				return err
+			}
+			return be.Transition(args[0], status, body)
+		},
+	}
+	c.Flags().StringVar(&status, "status", "", "Target status (tracker-native, required).")
+	c.Flags().StringVar(&comment, "comment", "", "Comment to post (markdown).")
+	c.Flags().StringVarP(&commentFile, "comment-file", "f", "", "Path to markdown file ('-' for stdin).")
 	return c
 }
 

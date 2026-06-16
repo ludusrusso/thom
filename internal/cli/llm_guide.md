@@ -46,6 +46,10 @@ jira:
   prd_issue_type: Epic
   subissue_issue_type: Task
   close_status: Done           # target status name; for IT locale use "Completata"
+  backlog_status: Backlog      # target for `issue backlog`; IT board e.g. "Backlog"
+  todo_status: To Do           # target for `issue todo`; IT board e.g. "Da fare"
+  start_status: In Progress    # target for `issue start`; IT board e.g. "In corso"
+  review_status: To Review     # target for `issue review`; IT board e.g. "In revisione"
 ```
 
 ```yaml
@@ -237,6 +241,39 @@ The five canonical triage states are labels: `needs-triage`, `needs-info`,
 `ready-for-agent`, `ready-for-human`, `wontfix`. Apply exactly one state
 label at a time.
 
+### Edit the body or title
+
+```sh
+cat <<'EOF' | thomctl issue edit OPE-743 -f -        # replace the description in full
+## Revised slice
+...
+EOF
+thomctl issue edit OPE-743 --title "Wire schema (revised)"   # title only
+thomctl issue edit OPE-743 --title "..." -f body.md          # both at once
+```
+
+`edit` updates the title (`--title`) and/or description (`--body` / `-f`); at
+least one is required. The description is replaced in full (not appended — use
+`issue comment` to add to the discussion). Works on both backends.
+
+### Move through the workflow (backlog / todo / start / review / transition)
+
+```sh
+thomctl issue backlog OPE-743                          # -> backlog (jira.backlog_status, default "Backlog")
+thomctl issue todo    OPE-743                          # -> to-do (jira.todo_status, default "To Do")
+thomctl issue start   OPE-743                          # -> in-progress (jira.start_status, default "In Progress")
+thomctl issue review  OPE-743 --comment "PR #42 open"  # -> review (jira.review_status, default "To Review")
+thomctl issue transition OPE-743 --status "Blocked"    # -> any arbitrary status
+```
+
+`backlog` / `todo` / `start` / `review` are convenience verbs over a configured
+status; `transition` takes an arbitrary `--status`. All verify the status
+actually changed (same check as Close). The afk lifecycle maps onto the board:
+`backlog` -> `todo` when groomed -> `start` when you pick up a slice -> `review`
+when the PR is open and awaiting a human -> `close` on merge. GitHub issues have
+no arbitrary statuses (open/closed only), so these status verbs are Jira-only —
+on GitHub use `close`.
+
 ### Close
 
 ```sh
@@ -251,9 +288,8 @@ silent no-op.
 
 ## What `thomctl` deliberately does NOT do
 
-- Edit an existing issue's body. Re-create or comment instead.
 - Delete issues. Use `acli jira workitem delete` if you really need to.
-- Manage sprints, attachments, worklog, or transitions other than close.
+- Manage sprints, attachments, or worklog.
 - Track activity across comments for "needs re-triage" detection.
 
 ## Gotchas

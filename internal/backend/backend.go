@@ -22,11 +22,19 @@ type Issue struct {
 
 // CreateOpts is the input for creating a PRD or sub-issue.
 type CreateOpts struct {
-	Summary    string
-	BodyMD     string
-	Labels     []string
-	ParentKey  string // empty for top-level PRDs
-	Assignee   string // empty = unassigned, "@me" = self
+	Summary   string
+	BodyMD    string
+	Labels    []string
+	ParentKey string // empty for top-level PRDs
+	Assignee  string // empty = unassigned, "@me" = self
+}
+
+// EditOpts carries optional field updates for an existing issue. A nil pointer
+// means "leave unchanged"; a non-nil pointer applies the value (including the
+// empty string, to clear a field). At least one field must be set.
+type EditOpts struct {
+	Summary *string // new title/summary
+	BodyMD  *string // new description, as markdown
 }
 
 // ListOpts filters list operations.
@@ -72,6 +80,11 @@ type Backend interface {
 	// View returns full detail for a single issue.
 	View(key string) (Issue, error)
 
+	// Edit updates mutable fields of an existing issue (summary, description).
+	// Fields left nil in opts are unchanged. Returns an error if opts sets no
+	// fields.
+	Edit(key string, opts EditOpts) error
+
 	// Comment posts a markdown comment on key.
 	Comment(key, bodyMD string) error
 
@@ -85,6 +98,12 @@ type Backend interface {
 	// target status; pass empty to use the backend's configured default.
 	// Comment is optional.
 	Close(key, status, comment string) error
+
+	// Transition moves key to an arbitrary tracker-native status (e.g. the
+	// in-progress status). status is required. Comment is optional. Backends
+	// without arbitrary statuses (e.g. GitHub, whose issues are only
+	// open/closed) return an error. Use Close for terminal transitions.
+	Transition(key, status, comment string) error
 
 	// ListLinks returns all issue links involving key.
 	ListLinks(key string) ([]Link, error)

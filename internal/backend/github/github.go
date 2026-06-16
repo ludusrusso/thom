@@ -195,6 +195,27 @@ func (b *Backend) View(key string) (backend.Issue, error) {
 	return issue, nil
 }
 
+func (b *Backend) Edit(key string, opts backend.EditOpts) error {
+	if opts.Summary == nil && opts.BodyMD == nil {
+		return errors.New("nothing to edit (set summary and/or description)")
+	}
+	n, err := normalizeKey(key)
+	if err != nil {
+		return err
+	}
+	args := []string{"issue", "edit", strconv.Itoa(n)}
+	if opts.Summary != nil {
+		args = append(args, "--title", *opts.Summary)
+	}
+	if opts.BodyMD != nil {
+		args = append(args, "--body-file", "-")
+		_, err = b.runStdin(*opts.BodyMD, args...)
+		return err
+	}
+	_, err = b.run(args...)
+	return err
+}
+
 func (b *Backend) Comment(key, bodyMD string) error {
 	n, err := normalizeKey(key)
 	if err != nil {
@@ -241,6 +262,10 @@ func (b *Backend) Close(key, status, comment string) error {
 	}
 	_, err = b.run("issue", "close", strconv.Itoa(n), "--reason", reason)
 	return err
+}
+
+func (b *Backend) Transition(key, status, comment string) error {
+	return fmt.Errorf("github issues have no arbitrary statuses (only open/closed): cannot transition %s to %q — use `issue close` to close, or model status via labels/Projects", key, status)
 }
 
 func (b *Backend) ListLinks(key string) ([]backend.Link, error) {
@@ -559,12 +584,12 @@ func (b *Backend) runGraphQL(query string, vars map[string]string) ([]byte, erro
 
 // ghIssue is the shape `gh issue view/list --json ...` returns.
 type ghIssue struct {
-	Number    int    `json:"number"`
-	Title     string `json:"title"`
-	State     string `json:"state"`
-	Body      string `json:"body,omitempty"`
-	URL       string `json:"url"`
-	Labels    []struct {
+	Number int    `json:"number"`
+	Title  string `json:"title"`
+	State  string `json:"state"`
+	Body   string `json:"body,omitempty"`
+	URL    string `json:"url"`
+	Labels []struct {
 		Name string `json:"name"`
 	} `json:"labels"`
 	Assignees []struct {
