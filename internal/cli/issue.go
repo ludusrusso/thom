@@ -24,6 +24,8 @@ func issueCmd() *cobra.Command {
 		issueCommentCmd(),
 		issueLabelCmd(),
 		issueLinkCmd(),
+		issueBacklogCmd(),
+		issueTodoCmd(),
 		issueStartCmd(),
 		issueReviewCmd(),
 		issueTransitionCmd(),
@@ -352,6 +354,24 @@ func issueLabelCmd() *cobra.Command {
 	}
 	c.AddCommand(add, remove)
 	return c
+}
+
+func issueBacklogCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"backlog <KEY>",
+		"Transition an issue to the backlog status (jira.backlog_status, default \"Backlog\"). Optionally post a comment.",
+		"backlog_status",
+		func(c config.Config) string { return c.Jira.BacklogStatus },
+	)
+}
+
+func issueTodoCmd() *cobra.Command {
+	return statusTransitionCmd(
+		"todo <KEY>",
+		"Transition an issue to the to-do status (jira.todo_status, default \"To Do\"). Optionally post a comment.",
+		"todo_status",
+		func(c config.Config) string { return c.Jira.TodoStatus },
+	)
 }
 
 func issueStartCmd() *cobra.Command {
