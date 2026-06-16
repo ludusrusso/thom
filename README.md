@@ -19,7 +19,8 @@ on the agent's behalf:
 
 ```
 thomctl prd    create | list | view | issues
-thomctl issue  create | list | view | comment | label | link | close
+thomctl issue  create | edit | list | view | comment | label | link
+thomctl issue  backlog | todo | start | review | transition | close
 thomctl ralph  <PRD> [--afk] | once <PRD> | clean
 thomctl init                                 # scaffold .thom/ and migrate legacy config
 thomctl config                               # show resolved config
@@ -128,13 +129,14 @@ jira:
   prd_issue_type: Epic
   subissue_issue_type: Task
   close_status: Done # target status name (NOT transition name)
+  backlog_status: Backlog # target for `issue backlog`; IT board e.g. "Backlog"
+  todo_status: To Do # target for `issue todo`; IT board e.g. "Da fare"
   start_status: In Progress # target for `issue start`; IT board e.g. "In corso"
   review_status: To Review # target for `issue review`; IT board e.g. "In revisione"
 ```
 
-For Italian-localized Jira workflows, set `close_status` / `start_status` /
-`review_status` to the locale's target status names (e.g. `Completata`); see
-_Known quirks_ below.
+For Italian-localized Jira workflows, set the `*_status` fields to the locale's
+target status names (e.g. `Completata`); see _Known quirks_ below.
 
 ### GitHub backend
 
@@ -231,20 +233,26 @@ Closing because the original report is now obsolete."
 thomctl issue label add    PROJ-743 ready-for-agent
 thomctl issue label remove PROJ-743 needs-triage
 
-thomctl issue start  PROJ-743                          # -> in-progress (start_status)
-thomctl issue review PROJ-743 --comment "PR #42 open"  # -> review (review_status)
-thomctl issue transition PROJ-743 --status "To Do"     # -> any arbitrary status
+thomctl issue edit  PROJ-743 --title "Revised"          # update title and/or body (-f -)
+
+thomctl issue backlog PROJ-743                          # -> backlog (backlog_status)
+thomctl issue todo    PROJ-743                          # -> to-do (todo_status)
+thomctl issue start   PROJ-743                          # -> in-progress (start_status)
+thomctl issue review  PROJ-743 --comment "PR #42 open"  # -> review (review_status)
+thomctl issue transition PROJ-743 --status "Blocked"    # -> any arbitrary status
 
 thomctl issue close PROJ-743                            # default close_status from config
 thomctl issue close PROJ-743 --comment "Done in PR #42" # with a closing comment
 thomctl issue close PROJ-743 --status "Annullato"       # override (e.g. cancelled vs done)
 ```
 
-`start` / `review` are convenience verbs over a configured status (mapping onto
-a To Do → In Progress → To Review → Done board); `transition` takes an arbitrary
-`--status`. All — like `close` — verify the status actually changed, so a
-workflow that doesn't permit the transition yields an error, not a silent no-op.
-GitHub issues are open/closed only, so these are Jira-only (use `close` there).
+`backlog` / `todo` / `start` / `review` are convenience verbs over a configured
+status (mapping onto a Backlog → To Do → In Progress → To Review → Done board);
+`transition` takes an arbitrary `--status`. All — like `close` — verify the
+status actually changed, so a workflow that doesn't permit the transition yields
+an error, not a silent no-op. GitHub issues are open/closed only, so these are
+Jira-only (use `close` there). `issue edit` updates the title/body on both
+backends.
 
 ### Ralph (the loop)
 
@@ -364,9 +372,8 @@ CONTEXT.md                    # glossary of domain terms (PRD, Sub-issue, HITL, 
 
 ## What thomctl deliberately doesn't do
 
-- Edit an existing issue's body (re-create or comment instead).
 - Delete issues (use `acli jira workitem delete` if you really need to).
-- Sprints, attachments, worklog, transitions other than close.
+- Sprints, attachments, worklog.
 - Track comment timestamps for "needs re-triage" detection — out of scope.
 
 ## Status

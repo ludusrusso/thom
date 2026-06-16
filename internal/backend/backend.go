@@ -29,6 +29,14 @@ type CreateOpts struct {
 	Assignee  string // empty = unassigned, "@me" = self
 }
 
+// EditOpts carries optional field updates for an existing issue. A nil pointer
+// means "leave unchanged"; a non-nil pointer applies the value (including the
+// empty string, to clear a field). At least one field must be set.
+type EditOpts struct {
+	Summary *string // new title/summary
+	BodyMD  *string // new description, as markdown
+}
+
 // ListOpts filters list operations.
 type ListOpts struct {
 	Labels []string // AND-matched
@@ -71,6 +79,11 @@ type Backend interface {
 
 	// View returns full detail for a single issue.
 	View(key string) (Issue, error)
+
+	// Edit updates mutable fields of an existing issue (summary, description).
+	// Fields left nil in opts are unchanged. Returns an error if opts sets no
+	// fields.
+	Edit(key string, opts EditOpts) error
 
 	// Comment posts a markdown comment on key.
 	Comment(key, bodyMD string) error

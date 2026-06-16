@@ -52,11 +52,14 @@ type JiraConfig struct {
 	PRDIssueType      string `yaml:"prd_issue_type"`
 	SubissueIssueType string `yaml:"subissue_issue_type"`
 	CloseStatus       string `yaml:"close_status"`
-	// StartStatus is the target status for `issue start` (in-progress) and
-	// ReviewStatus for `issue review` (awaiting human review). For non-English
-	// Jira workflows override them, e.g. "In corso" / "In revisione".
-	StartStatus  string `yaml:"start_status"`
-	ReviewStatus string `yaml:"review_status"`
+	// BacklogStatus, TodoStatus, StartStatus and ReviewStatus are the targets
+	// for the semantic lifecycle commands `issue backlog`, `issue todo`,
+	// `issue start` (in-progress) and `issue review` (awaiting human review).
+	// For non-English Jira workflows override them, e.g. "Da fare" / "In corso".
+	BacklogStatus string `yaml:"backlog_status"`
+	TodoStatus    string `yaml:"todo_status"`
+	StartStatus   string `yaml:"start_status"`
+	ReviewStatus  string `yaml:"review_status"`
 
 	// Site is the Atlassian instance base URL (e.g. https://acme.atlassian.net).
 	// Used to synthesise issue URLs as <site>/browse/<KEY>. Optional — when
@@ -80,6 +83,8 @@ func defaults() Config {
 			PRDIssueType:      "Epic",
 			SubissueIssueType: "Task",
 			CloseStatus:       "Done",
+			BacklogStatus:     "Backlog",
+			TodoStatus:        "To Do",
 			StartStatus:       "In Progress",
 			ReviewStatus:      "To Review",
 		},

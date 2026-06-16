@@ -115,17 +115,32 @@ thomctl issue label add    OPE-743 ready-for-agent
 thomctl issue label remove OPE-743 needs-triage
 ```
 
+### Edit the body or title
+
+```sh
+cat <<'EOF' | thomctl issue edit OPE-743 -f -          # replace description in full
+## Revised slice
+...
+EOF
+thomctl issue edit OPE-743 --title "New title"         # title only
+```
+
+`edit` updates `--title` and/or `--body`/`-f` (at least one required). The
+description is replaced in full; use `issue comment` to add to the discussion.
+
 ### Move through the workflow
 
 ```sh
-thomctl issue start  OPE-743                           # -> in-progress (jira.start_status)
-thomctl issue review OPE-743 --comment "PR #456 open"  # -> review (jira.review_status)
-thomctl issue transition OPE-743 --status "To Do"      # -> arbitrary status
+thomctl issue backlog OPE-743                          # -> backlog (jira.backlog_status)
+thomctl issue todo    OPE-743                          # -> to-do (jira.todo_status)
+thomctl issue start   OPE-743                          # -> in-progress (jira.start_status)
+thomctl issue review  OPE-743 --comment "PR #456 open" # -> review (jira.review_status)
+thomctl issue transition OPE-743 --status "Blocked"    # -> arbitrary status
 ```
 
-The afk lifecycle on a 4-column board: `start` on pickup → `review` when the PR
-is open and awaiting a human → `close` on merge. Jira-only (GitHub issues are
-open/closed).
+The afk lifecycle on the board: `backlog` → `todo` when groomed → `start` on
+pickup → `review` when the PR is open and awaiting a human → `close` on merge.
+Status verbs are Jira-only (GitHub issues are open/closed).
 
 ### Close
 
@@ -166,4 +181,3 @@ later, not for round-tripping a just-created issue.
 
 - It is not a search interface — for complex JQL use `acli` directly.
 - It does not currently expose attachments, worklog, or sprints.
-- It does not edit the issue body after creation. Re-create or comment.

@@ -93,6 +93,32 @@ func (b *Backend) View(key string) (backend.Issue, error) {
 	return b.decodeIssue(raw), nil
 }
 
+func (b *Backend) Edit(key string, opts backend.EditOpts) error {
+	if opts.Summary == nil && opts.BodyMD == nil {
+		return errors.New("nothing to edit (set summary and/or description)")
+	}
+	args := []string{"workitem", "edit", "--key", key, "--yes"}
+	if opts.Summary != nil {
+		args = append(args, "--summary", *opts.Summary)
+	}
+	if opts.BodyMD != nil {
+		// acli's --description-file accepts ADF JSON; reuse the markdown→ADF
+		// path so the wire format matches what create writes.
+		doc, err := adf.FromMarkdown(*opts.BodyMD)
+		if err != nil {
+			return err
+		}
+		path, cleanup, err := writeTempJSON(doc)
+		if err != nil {
+			return err
+		}
+		defer cleanup()
+		args = append(args, "--description-file", path)
+	}
+	_, err := b.run(args...)
+	return err
+}
+
 func (b *Backend) Comment(key, bodyMD string) error {
 	doc, err := adf.FromMarkdown(bodyMD)
 	if err != nil {

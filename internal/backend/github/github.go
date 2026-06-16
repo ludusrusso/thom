@@ -195,6 +195,27 @@ func (b *Backend) View(key string) (backend.Issue, error) {
 	return issue, nil
 }
 
+func (b *Backend) Edit(key string, opts backend.EditOpts) error {
+	if opts.Summary == nil && opts.BodyMD == nil {
+		return errors.New("nothing to edit (set summary and/or description)")
+	}
+	n, err := normalizeKey(key)
+	if err != nil {
+		return err
+	}
+	args := []string{"issue", "edit", strconv.Itoa(n)}
+	if opts.Summary != nil {
+		args = append(args, "--title", *opts.Summary)
+	}
+	if opts.BodyMD != nil {
+		args = append(args, "--body-file", "-")
+		_, err = b.runStdin(*opts.BodyMD, args...)
+		return err
+	}
+	_, err = b.run(args...)
+	return err
+}
+
 func (b *Backend) Comment(key, bodyMD string) error {
 	n, err := normalizeKey(key)
 	if err != nil {
