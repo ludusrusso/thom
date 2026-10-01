@@ -28,6 +28,9 @@ backend: github
 #   prd_issue_type: Epic
 #   subissue_issue_type: Task
 #   close_status: Done
+#   # Jira localises built-in names per user; IDs work for everyone:
+#   # subissue_issue_type_id: "10016"
+#   # close_status_id: "10015"
 #   site: https://acme.atlassian.net  # optional; enables clickable KEYs in list/view
 
 prd_label: PRD
