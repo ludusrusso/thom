@@ -18,17 +18,29 @@ import (
 
 type Backend struct {
 	cfg config.Config
+
+	// runner executes `acli jira <args...>`. It is a field so tests can
+	// substitute a fake; New wires the real exec-based implementation.
+	runner func(args ...string) ([]byte, error)
+
+	// issueTypes caches the project's issue types (see resolve.go), loaded
+	// lazily and only when an *_issue_type_id key is configured.
+	issueTypes []issueType
 }
 
 func New(cfg config.Config) *Backend {
-	return &Backend{cfg: cfg}
+	return &Backend{cfg: cfg, runner: execACLI}
 }
 
 // --- public API ---
 
 func (b *Backend) CreatePRD(opts backend.CreateOpts) (string, error) {
 	labels := mergeLabels(b.cfg.DefaultLabels, opts.Labels, b.cfg.PRDLabel)
-	return b.create(opts, b.cfg.Jira.PRDIssueType, labels, "")
+	issueType, err := b.issueTypeName(b.cfg.Jira.PRDIssueType, b.cfg.Jira.PRDIssueTypeID, "prd_issue_type_id")
+	if err != nil {
+		return "", err
+	}
+	return b.create(opts, issueType, labels, "")
 }
 
 func (b *Backend) CreateSubissue(opts backend.CreateOpts) (string, error) {
@@ -36,13 +48,21 @@ func (b *Backend) CreateSubissue(opts backend.CreateOpts) (string, error) {
 		return "", errors.New("parent key is required for sub-issues")
 	}
 	labels := mergeLabels(b.cfg.DefaultLabels, opts.Labels)
-	return b.create(opts, b.cfg.Jira.SubissueIssueType, labels, opts.ParentKey)
+	issueType, err := b.issueTypeName(b.cfg.Jira.SubissueIssueType, b.cfg.Jira.SubissueIssueTypeID, "subissue_issue_type_id")
+	if err != nil {
+		return "", err
+	}
+	return b.create(opts, issueType, labels, opts.ParentKey)
 }
 
 func (b *Backend) ListPRDs(opts backend.ListOpts) ([]backend.Issue, error) {
+	typeClause, err := issueTypeClause(b.cfg.Jira.PRDIssueType, b.cfg.Jira.PRDIssueTypeID, "prd_issue_type_id")
+	if err != nil {
+		return nil, err
+	}
 	clauses := []string{
 		fmt.Sprintf("project = %s", quote(b.cfg.Jira.ProjectKey)),
-		fmt.Sprintf("issuetype = %s", quote(b.cfg.Jira.PRDIssueType)),
+		typeClause,
 	}
 	if b.cfg.PRDLabel != "" {
 		clauses = append(clauses, fmt.Sprintf("labels = %s", quote(b.cfg.PRDLabel)))
@@ -63,9 +83,13 @@ func (b *Backend) ListSubissues(parentKey string, opts backend.ListOpts) ([]back
 	if parentKey != "" {
 		clauses = append(clauses, fmt.Sprintf("parent = %s", parentKey))
 	} else {
+		typeClause, err := issueTypeClause(b.cfg.Jira.SubissueIssueType, b.cfg.Jira.SubissueIssueTypeID, "subissue_issue_type_id")
+		if err != nil {
+			return nil, err
+		}
 		clauses = append(clauses,
 			fmt.Sprintf("project = %s", quote(b.cfg.Jira.ProjectKey)),
-			fmt.Sprintf("issuetype = %s", quote(b.cfg.Jira.SubissueIssueType)),
+			typeClause,
 		)
 	}
 	for _, l := range opts.Labels {
@@ -207,11 +231,18 @@ func (b *Backend) RemoveLink(linkID string) error {
 }
 
 func (b *Backend) Close(key, status, comment string) error {
+	if status == "" && b.cfg.Jira.CloseStatusID != "" {
+		resolved, err := b.statusName(b.cfg.Jira.CloseStatusID, "close_status_id")
+		if err != nil {
+			return err
+		}
+		status = resolved
+	}
 	if status == "" {
 		status = b.cfg.Jira.CloseStatus
 	}
 	if status == "" {
-		return errors.New("no close status configured (set jira.close_status in .thomctl.yaml or pass --status)")
+		return errors.New("no close status configured (set jira.close_status_id or jira.close_status in .thom/config.yaml, or pass --status)")
 	}
 	if comment != "" {
 		if err := b.Comment(key, comment); err != nil {
@@ -317,6 +348,12 @@ func (b *Backend) search(jql string, limit int) ([]backend.Issue, error) {
 }
 
 func (b *Backend) run(args ...string) ([]byte, error) {
+	return b.runner(args...)
+}
+
+// execACLI runs `acli jira <args...>` and returns stdout, folding stderr into
+// the error on failure.
+func execACLI(args ...string) ([]byte, error) {
 	full := append([]string{"jira"}, args...)
 	cmd := exec.Command("acli", full...)
 	var stderr strings.Builder

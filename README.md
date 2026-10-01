@@ -128,10 +128,34 @@ jira:
   prd_issue_type: Epic
   subissue_issue_type: Task
   close_status: Done # target status name (NOT transition name)
+  # Optional, recommended for shared configs: language-independent IDs.
+  # Each one wins over the matching name above (see below).
+  # prd_issue_type_id: "10000"
+  # subissue_issue_type_id: "10016"
+  # close_status_id: "10015"
 ```
 
-For Italian-localized Jira workflows, set `close_status` to the locale's
-target status name (e.g. `Completata`); see _Known quirks_ below.
+#### Names are localised per user: prefer IDs
+
+Jira translates the names of its built-in issue types and statuses per
+**user profile language**, and `acli` accepts them only as the calling user
+sees them. With the same site and project, an English-profile user needs
+`Sub-task` / `Done` and an Italian-profile user needs `Sottotask` /
+`Completata`. Custom names (e.g. `BACKLOG`) are not translated. A committed
+name therefore breaks for everyone using the other language.
+
+The `*_id` keys avoid this: thomctl resolves each ID to the caller's own name
+at runtime (issue types via `acli jira project view`, statuses via a
+`status = <id>` search) and uses the ID directly in JQL. Name-only configs
+keep working as before. To find the IDs:
+
+```sh
+acli jira project view --key PROJ --json | jq '.issueTypes[] | {id, name, subtask}'
+acli jira workitem view PROJ-123 --fields status --json | jq '.fields.status | {id, name}'
+```
+
+`close_status_id` resolves only once at least one visible issue is in that
+status; until then use `close_status` or `--status`.
 
 ### GitHub backend
 
@@ -335,12 +359,11 @@ CONTEXT.md                    # glossary of domain terms (PRD, Sub-issue, HITL, 
   `strong` / `strike`. `thomctl` strips the conflicting marks when emitting a
   code-marked text node so markdown like ``_an `thomctl` tool_`` becomes "an"
   (em) + "thomctl" (code) + "tool" (em), not the invalid em+code combo.
-- **Italian-localized Jira workflows.** On Italian projects the terminal
-  status is typically named `Completata` (target status), and the
-  _transition_ to get there is named `Completato`. `acli` wants the
-  **target** name — pass `"Completata"` to `--status` or set
-  `close_status = "Completata"` in `.thom/config.yaml`. The same pattern
-  applies to any locale where transition and status names differ.
+- **Localised Jira names.** Built-in issue-type and status names follow
+  each user's profile language (`Done` vs `Completata`), so prefer
+  `close_status_id` / `*_issue_type_id` in shared configs (see _Names are
+  localised per user_). When passing a name, `acli` wants the **target
+  status** name (`Completata`), not the _transition_ name (`Completato`).
 - **`@me` only resolves on certain acli flags.** `acli workitem create
 --from-json` silently ignores `--assignee` and rejects `@me` inside the
   JSON payload with "User not found". `thomctl` works around this by issuing

@@ -45,7 +45,12 @@ jira:
   project_key: PROJ            # the Jira project key for this repo
   prd_issue_type: Epic
   subissue_issue_type: Task
-  close_status: Done           # target status name; for IT locale use "Completata"
+  close_status: Done           # target status name, in the caller's profile language
+  # Prefer IDs in shared configs: Jira localises built-in names per user.
+  # Each *_id wins over its name and is resolved to the caller's name at runtime.
+  # prd_issue_type_id: "10000"
+  # subissue_issue_type_id: "10016"
+  # close_status_id: "10015"
 ```
 
 ```yaml
@@ -261,10 +266,13 @@ silent no-op.
 - **Jira's JQL index is eventually consistent.** Right after `create`, a
   `list --parent KEY` may return empty for ~3 seconds. Trust the key
   returned by `create`; don't re-list to confirm.
-- **`close` uses the configured `close_status` from `.thomctl.yaml`.** For
-  Italian-language Jira projects (OPE), that's `"Completata"`. The
-  *transition name* (`"Completato"`) is NOT what you pass — pass the
-  *target status name*.
+- **`close` uses `close_status_id` (or `close_status`) from `.thom/config.yaml`.**
+  Built-in status and issue-type names are translated per *user profile
+  language* (`Done` vs `Completata`, `Sub-task` vs `Sottotask`), so a name
+  that works for one user fails for another. Don't "fix" a committed name
+  into your own language: set the `*_id` keys instead. When you do pass
+  `--status`, use the *target status name* as you see it, not the
+  *transition name* (`"Completato"`).
 - **Default `--assignee` is `@me`.** If you want to assign to someone else,
   pass their email. If you want unassigned, pass `--assignee ''` explicitly.
 

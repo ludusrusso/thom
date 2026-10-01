@@ -78,9 +78,9 @@ func configCmd() *cobra.Command {
 			switch cfg.Backend {
 			case "jira":
 				fmt.Printf("jira.project_key         = %s\n", cfg.Jira.ProjectKey)
-				fmt.Printf("jira.prd_issue_type      = %s\n", cfg.Jira.PRDIssueType)
-				fmt.Printf("jira.subissue_issue_type = %s\n", cfg.Jira.SubissueIssueType)
-				fmt.Printf("jira.close_status        = %s\n", cfg.Jira.CloseStatus)
+				fmt.Printf("jira.prd_issue_type      = %s\n", withID(cfg.Jira.PRDIssueType, cfg.Jira.PRDIssueTypeID))
+				fmt.Printf("jira.subissue_issue_type = %s\n", withID(cfg.Jira.SubissueIssueType, cfg.Jira.SubissueIssueTypeID))
+				fmt.Printf("jira.close_status        = %s\n", withID(cfg.Jira.CloseStatus, cfg.Jira.CloseStatusID))
 				fmt.Printf("jira.site                = %s\n", cfg.Jira.Site)
 			case "github":
 				fmt.Printf("github                   = (repo resolved from cwd by gh)\n")
@@ -89,6 +89,16 @@ func configCmd() *cobra.Command {
 		},
 	}
 	return c
+}
+
+// withID renders a name-or-ID config pair. When an ID is set it is what
+// thomctl uses (resolved to the caller's localised name at runtime), so it
+// is shown first and the name is marked as unused.
+func withID(name, id string) string {
+	if id == "" {
+		return name
+	}
+	return fmt.Sprintf("id %s (name %q ignored; resolved per user)", id, name)
 }
 
 // mustOneOf returns the first non-empty value, or an error using name.

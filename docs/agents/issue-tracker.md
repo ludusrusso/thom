@@ -21,6 +21,9 @@ jira:
   project_key: OPE                # the Jira project key
   prd_issue_type: Epic
   subissue_issue_type: Task
+  # Jira localises built-in issue-type/status names per user profile
+  # language; prefer the *_id keys (prd_issue_type_id,
+  # subissue_issue_type_id, close_status_id) in shared configs.
   prd_label: PRD                  # all PRDs carry this label
   ready_label: ready-for-agent    # added automatically to created issues
   default_labels:
