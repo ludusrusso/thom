@@ -29,6 +29,13 @@ type CreateOpts struct {
 	Assignee   string // empty = unassigned, "@me" = self
 }
 
+// EditOpts is the input for editing an existing issue. Nil fields are left
+// untouched; BodyMD replaces the whole description.
+type EditOpts struct {
+	Summary *string
+	BodyMD  *string
+}
+
 // ListOpts filters list operations.
 type ListOpts struct {
 	Labels []string // AND-matched
@@ -71,6 +78,9 @@ type Backend interface {
 
 	// View returns full detail for a single issue.
 	View(key string) (Issue, error)
+
+	// Edit replaces the title and/or body of key.
+	Edit(key string, opts EditOpts) error
 
 	// Comment posts a markdown comment on key.
 	Comment(key, bodyMD string) error

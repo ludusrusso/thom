@@ -5,22 +5,27 @@
 //
 // Supported nodes: headings, paragraphs, hard/soft breaks, strong/em/strike,
 // inline code, links, bullet/ordered lists (nested), code blocks (fenced),
-// blockquotes, thematic breaks, and images (rendered as links — ADF media nodes
+// blockquotes, thematic breaks, GFM tables, and images (rendered as links — ADF media nodes
 // require uploaded media IDs which we don't have).
 package adf
 
 import (
 	"bytes"
+	"strings"
 
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/ast"
+	"github.com/yuin/goldmark/extension"
+	east "github.com/yuin/goldmark/extension/ast"
 	gmtext "github.com/yuin/goldmark/text"
 )
 
+var md = goldmark.New(goldmark.WithExtensions(extension.Table))
+
 // FromMarkdown parses md and returns an ADF doc node.
-func FromMarkdown(md string) (map[string]any, error) {
-	src := []byte(md)
-	root := goldmark.DefaultParser().Parse(gmtext.NewReader(src))
+func FromMarkdown(markdown string) (map[string]any, error) {
+	src := []byte(markdown)
+	root := md.Parser().Parse(gmtext.NewReader(src))
 	c := &converter{src: src}
 	blocks := c.blocks(root)
 	if blocks == nil {
@@ -104,6 +109,19 @@ func (c *converter) block(n ast.Node) any {
 			"type":    "paragraph",
 			"content": c.inlines(n),
 		}
+	case *east.Table:
+		return map[string]any{
+			"type": "table",
+			"attrs": map[string]any{
+				"isNumberColumnEnabled": false,
+				"layout":                "default",
+			},
+			"content": c.blocks(n),
+		}
+	case *east.TableHeader:
+		return c.tableRow(n, "tableHeader")
+	case *east.TableRow:
+		return c.tableRow(n, "tableCell")
 	case *ast.HTMLBlock:
 		// Render raw HTML as a paragraph of plain text — Jira ADF has no
 		// equivalent and stripping silently would lose content.
@@ -123,6 +141,22 @@ func (c *converter) block(n ast.Node) any {
 		}
 		return nil
 	}
+}
+
+// tableRow wraps each cell's inlines in a paragraph: ADF table cells hold
+// block content, not inline nodes.
+func (c *converter) tableRow(row ast.Node, cellType string) map[string]any {
+	var cells []any
+	for cell := row.FirstChild(); cell != nil; cell = cell.NextSibling() {
+		cells = append(cells, map[string]any{
+			"type": cellType,
+			"content": []any{map[string]any{
+				"type":    "paragraph",
+				"content": c.inlines(cell),
+			}},
+		})
+	}
+	return map[string]any{"type": "tableRow", "content": cells}
 }
 
 func (c *converter) inlines(parent ast.Node) []any {
@@ -319,6 +353,10 @@ func walkPlain(n any, buf *bytes.Buffer) {
 	if t, _ := m["type"].(string); t == "hardBreak" {
 		buf.WriteString("\n")
 	}
+	if t, _ := m["type"].(string); t == "tableRow" {
+		writePlainRow(m, buf)
+		return
+	}
 	if c, ok := m["content"].([]any); ok {
 		for _, child := range c {
 			walkPlain(child, buf)
@@ -328,4 +366,17 @@ func walkPlain(n any, buf *bytes.Buffer) {
 			buf.WriteString("\n")
 		}
 	}
+}
+
+// writePlainRow renders an ADF tableRow as a markdown-style "| a | b |" line
+// so tables stay readable in plain-text views.
+func writePlainRow(row map[string]any, buf *bytes.Buffer) {
+	cells, _ := row["content"].([]any)
+	parts := make([]string, 0, len(cells))
+	for _, cell := range cells {
+		var cb bytes.Buffer
+		walkPlain(cell, &cb)
+		parts = append(parts, strings.ReplaceAll(strings.TrimSpace(cb.String()), "\n", " "))
+	}
+	buf.WriteString("| " + strings.Join(parts, " | ") + " |\n")
 }

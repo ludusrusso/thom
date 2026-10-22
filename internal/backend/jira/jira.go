@@ -93,6 +93,27 @@ func (b *Backend) View(key string) (backend.Issue, error) {
 	return b.decodeIssue(raw), nil
 }
 
+func (b *Backend) Edit(key string, opts backend.EditOpts) error {
+	payload := map[string]any{"issues": []string{key}}
+	if opts.Summary != nil {
+		payload["summary"] = *opts.Summary
+	}
+	if opts.BodyMD != nil {
+		doc, err := adf.FromMarkdown(*opts.BodyMD)
+		if err != nil {
+			return err
+		}
+		payload["description"] = doc
+	}
+	path, cleanup, err := writeTempJSON(payload)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	_, err = b.run("workitem", "edit", "--from-json", path, "--yes")
+	return err
+}
+
 func (b *Backend) Comment(key, bodyMD string) error {
 	doc, err := adf.FromMarkdown(bodyMD)
 	if err != nil {
