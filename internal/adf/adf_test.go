@@ -127,3 +127,53 @@ func TestFromMarkdown_Empty(t *testing.T) {
 		t.Fatalf("want empty content, got %v", doc["content"])
 	}
 }
+
+func TestFromMarkdown_Table(t *testing.T) {
+	doc, err := FromMarkdown("| Name | Value |\n| --- | --- |\n| **a** | `1` |\n| b | 2 |\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	content := doc["content"].([]any)
+	if len(content) != 1 {
+		t.Fatalf("want 1 block, got %d: %v", len(content), content)
+	}
+	table := content[0].(map[string]any)
+	if table["type"] != "table" {
+		t.Fatalf("want table, got %v", table["type"])
+	}
+	rows := table["content"].([]any)
+	if len(rows) != 3 {
+		t.Fatalf("want 3 rows (header + 2), got %d", len(rows))
+	}
+	wantCellTypes := []string{"tableHeader", "tableCell", "tableCell"}
+	for i, r := range rows {
+		row := r.(map[string]any)
+		if row["type"] != "tableRow" {
+			t.Errorf("row %d: want tableRow, got %v", i, row["type"])
+		}
+		cells := row["content"].([]any)
+		if len(cells) != 2 {
+			t.Errorf("row %d: want 2 cells, got %d", i, len(cells))
+		}
+		for _, c := range cells {
+			cell := c.(map[string]any)
+			if cell["type"] != wantCellTypes[i] {
+				t.Errorf("row %d: want %s, got %v", i, wantCellTypes[i], cell["type"])
+			}
+			para := cell["content"].([]any)[0].(map[string]any)
+			if para["type"] != "paragraph" {
+				t.Errorf("row %d: cell content must be a paragraph, got %v", i, para["type"])
+			}
+		}
+	}
+	if findText(doc, "a") == nil || findText(doc, "1") == nil {
+		t.Errorf("cell inlines missing: %v", doc)
+	}
+
+	plain := ToPlain(doc)
+	for _, want := range []string{"| Name | Value |", "| a | 1 |", "| b | 2 |"} {
+		if !strings.Contains(plain, want) {
+			t.Errorf("ToPlain missing %q in %q", want, plain)
+		}
+	}
+}

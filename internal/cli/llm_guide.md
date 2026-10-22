@@ -106,7 +106,7 @@ EOF
 ```
 
 Body is markdown. All standard CommonMark works: headings, lists, code
-blocks, blockquotes, links, hr, bold/italic. `code` marks are
+blocks, blockquotes, links, hr, bold/italic, plus GFM tables. `code` marks are
 auto-decoupled from `em`/`strong` (Jira ADF rejects the combination).
 
 ### Create sub-issues (tracer-bullet slices)
@@ -208,6 +208,21 @@ JSON shape:
 }
 ```
 
+### Edit title / body
+
+`edit` works on both PRDs and sub-issues. `--body` / `-f` replaces the
+**whole** body, so always send the complete new markdown, not a diff:
+
+```sh
+cat <<'EOF' | thomctl prd edit OPE-742 -f -
+## Goal
+
+Make the first-run flow obvious (revised).
+EOF
+
+thomctl issue edit OPE-743 --title "Wire schema + migration"
+```
+
 ### Comment
 
 Inline `--body` is fine here — comments are usually short:
@@ -251,7 +266,6 @@ silent no-op.
 
 ## What `thomctl` deliberately does NOT do
 
-- Edit an existing issue's body. Re-create or comment instead.
 - Delete issues. Use `acli jira workitem delete` if you really need to.
 - Manage sprints, attachments, worklog, or transitions other than close.
 - Track activity across comments for "needs re-triage" detection.

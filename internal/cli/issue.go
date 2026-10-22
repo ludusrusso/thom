@@ -18,6 +18,7 @@ func issueCmd() *cobra.Command {
 		issueCreateCmd(),
 		issueListCmd(),
 		issueViewCmd(),
+		editCmd("issue", "OPE-743"),
 		issueCommentCmd(),
 		issueLabelCmd(),
 		issueLinkCmd(),
@@ -191,6 +192,57 @@ func issueViewCmd() *cobra.Command {
 		},
 	}
 	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
+	return c
+}
+
+// editCmd is shared by `prd edit` and `issue edit`: both PRDs and sub-issues
+// are plain tracker issues, so the edit path is the same.
+func editCmd(noun, exampleKey string) *cobra.Command {
+	var (
+		title    string
+		body     string
+		bodyFile string
+	)
+	c := &cobra.Command{
+		Use:   "edit <KEY>",
+		Short: "Replace the title and/or the markdown body. The body is replaced as a whole.",
+		Example: "  cat <<'EOF' | thomctl " + noun + " edit " + exampleKey + " -f -\n" +
+			"  ## Goal\n" +
+			"  ...\n" +
+			"  EOF\n" +
+			"  thomctl " + noun + " edit " + exampleKey + " --title \"New title\"",
+		Args: cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			b, err := readBody(body, bodyFile)
+			if err != nil {
+				return err
+			}
+			var opts backend.EditOpts
+			if cmd.Flags().Changed("title") {
+				if title == "" {
+					return errors.New("--title cannot be empty")
+				}
+				opts.Summary = &title
+			}
+			if cmd.Flags().Changed("body") || cmd.Flags().Changed("body-file") {
+				if b == "" {
+					return errMissingBody
+				}
+				opts.BodyMD = &b
+			}
+			if opts.Summary == nil && opts.BodyMD == nil {
+				return errors.New("nothing to edit: pass --title and/or --body / --body-file")
+			}
+			be, _, err := resolveBackend()
+			if err != nil {
+				return err
+			}
+			return be.Edit(args[0], opts)
+		},
+	}
+	c.Flags().StringVar(&title, "title", "", "New title.")
+	c.Flags().StringVar(&body, "body", "", "New body markdown (replaces the whole body). Mutually exclusive with --body-file.")
+	c.Flags().StringVarP(&bodyFile, "body-file", "f", "", "Path to markdown file ('-' for stdin).")
 	return c
 }
 

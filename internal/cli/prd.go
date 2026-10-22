@@ -14,7 +14,7 @@ func prdCmd() *cobra.Command {
 		Use:   "prd",
 		Short: "Create, list, and read PRDs.",
 	}
-	c.AddCommand(prdCreateCmd(), prdListCmd(), prdViewCmd(), prdIssuesCmd())
+	c.AddCommand(prdCreateCmd(), prdListCmd(), prdViewCmd(), editCmd("prd", "OPE-742"), prdIssuesCmd())
 	return c
 }
 

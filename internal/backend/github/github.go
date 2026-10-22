@@ -195,6 +195,24 @@ func (b *Backend) View(key string) (backend.Issue, error) {
 	return issue, nil
 }
 
+func (b *Backend) Edit(key string, opts backend.EditOpts) error {
+	n, err := normalizeKey(key)
+	if err != nil {
+		return err
+	}
+	args := []string{"issue", "edit", strconv.Itoa(n)}
+	if opts.Summary != nil {
+		args = append(args, "--title", *opts.Summary)
+	}
+	body := ""
+	if opts.BodyMD != nil {
+		body = *opts.BodyMD
+		args = append(args, "--body-file", "-")
+	}
+	_, err = b.runStdin(body, args...)
+	return err
+}
+
 func (b *Backend) Comment(key, bodyMD string) error {
 	n, err := normalizeKey(key)
 	if err != nil {
