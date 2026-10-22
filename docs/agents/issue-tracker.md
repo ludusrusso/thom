@@ -1,158 +1,46 @@
-# Issue tracker: `thomctl`
+# Issue tracker: GitHub
 
-Issues and PRDs for repos that use this tracker live in **Jira**, but agents
-**must not** call `acli` (or any Jira API) directly. Use the `thomctl` binary —
-it wraps Jira behind a small, stable surface that takes markdown as input and
-returns issue keys you can reference.
-
-Drop this file in `docs/agents/issue-tracker.md` of any repo using `thomctl`
-and the Pocock skills (`to-prd`, `to-issues`, `triage`) will follow these
-conventions.
-
-## Setup
-
-Each repo needs a `.thomctl.yaml` at its root (or anywhere on the path from cwd
-up to `$HOME`) pointing at the right Jira project:
-
-```yaml
-backend: jira
-
-jira:
-  project_key: OPE                # the Jira project key
-  prd_issue_type: Epic
-  subissue_issue_type: Task
-  prd_label: PRD                  # all PRDs carry this label
-  ready_label: ready-for-agent    # added automatically to created issues
-  default_labels:
-    - engine                      # added to every issue created in this repo
-```
+Issues and specs for this repo live as GitHub issues. Use the `gh` CLI for all operations.
 
 ## Conventions
 
-### Create a PRD
+- **Create an issue**: `gh issue create --title "..." --body "..."`. Use a heredoc for multi-line bodies.
+- **Read an issue**: `gh issue view <number> --json number,title,body,labels,comments`.
+- **List issues**: `gh issue list --state open --json number,title,body,labels,comments --jq '[.[] | {number, title, body, labels: [.labels[].name], comments: [.comments[].body]}]'` with appropriate `--label` and `--state` filters.
+- **Make an issue a sub-issue of a parent**: `gh issue create --parent <parent> ...`, or `gh issue edit <parent> --add-sub-issue <child>` afterwards (`gh` 2.94+). Older `gh`: `gh api --method POST repos/<owner>/<repo>/issues/<parent>/sub_issues -F sub_issue_id=<child-db-id>` (database id, as in **Blocking** below). Without sub-issues, put `Part of #<parent>` at the top of the child body.
+- **Comment on an issue**: `gh issue comment <number> --body "..."`
+- **Apply / remove labels**: `gh issue edit <number> --add-label "..."` / `--remove-label "..."`
+- **Close**: `gh issue close <number> --comment "..."`
 
-```sh
-thomctl prd create --title "Improve onboarding" --body-file prd.md
-# or pipe markdown via stdin:
-cat prd.md | thomctl prd create --title "Improve onboarding" --body-file -
-```
+Infer the repo from `git remote -v`; `gh` does this automatically when run inside a clone.
 
-The body is markdown. `thomctl` converts it to Jira's ADF (headings, lists, code
-blocks, links, blockquotes, tables, bold/italic, hr) — agents never need to
-hand-write ADF. The created issue automatically gets the configured `prd_label`,
-`ready_label`, and `default_labels`. Add more with `--label` (repeatable).
+## Pull requests as a triage surface
 
-Output: the new Jira key on stdout (e.g. `OPE-742`). Use `--json` for
-`{"key":"OPE-742"}`.
+**PRs as a request surface: no.** _(Set to `yes` if this repo treats external PRs as feature requests; `/triage` reads this flag.)_
 
-### Create a sub-issue under a PRD
+When set to `yes`, PRs run through the same labels and states as issues, using the `gh pr` equivalents:
 
-```sh
-thomctl issue create --parent OPE-742 --title "Wire schema" --body-file slice.md --afk
-thomctl issue create --parent OPE-742 --title "Pick storage" --body-file slice.md --hitl
-```
+- **Read a PR**: `gh pr view <number> --comments` and `gh pr diff <number>` for the diff.
+- **List external PRs for triage**: `gh api --paginate 'repos/{owner}/{repo}/pulls?state=open' --jq '.[] | select(.author_association | IN("OWNER","MEMBER","COLLABORATOR") | not) | {number, title, author: .user.login, author_association, labels: [.labels[].name]}'`.
+- **Comment / label / close**: `gh pr comment`, `gh pr edit --add-label`/`--remove-label`, `gh pr close`.
 
-`--afk` marks the slice as agent-runnable and auto-applies `ready-for-agent`.
-`--hitl` marks it as needing a human first and does **not** apply
-`ready-for-agent` — HITL slices are blocked on a decision.
-
-Both PRDs and sub-issues are auto-assigned to the current user (`@me`).
-Override with `--assignee EMAIL` or unassign with `--assignee ''`.
-
-### List PRDs
-
-Completed PRDs are hidden by default; pass `--all` to include them.
-
-```sh
-thomctl prd list                          # open PRDs only
-thomctl prd list --all                    # incl. completed
-thomctl prd list --label engine           # AND-filter by label
-thomctl prd list --status "In Progress"   # exact status (overrides --all)
-thomctl prd list --json                   # machine-readable
-```
-
-### List sub-issues
-
-Two equivalent surfaces. `prd issues <KEY>` is the ergonomic positional
-form; `issue list --parent <KEY>` is the long form (and the one to use
-when you also need `--parent` to be empty for project-wide queries).
-Both hide completed slices by default — pass `--all` to include them.
-
-```sh
-thomctl prd issues OPE-742                        # all open slices of one PRD
-thomctl prd issues OPE-742 --afk                  # only the AFK-ready ones
-thomctl prd issues OPE-742 --hitl                 # only the HITL ones
-thomctl prd issues OPE-742 --all --json           # include completed, JSON
-
-thomctl issue list --parent OPE-742               # same as `prd issues OPE-742`
-thomctl issue list --label needs-triage           # project-wide (no --parent) — used by triage
-thomctl issue list --parent OPE-742 --status BACKLOG --json
-```
-
-Output includes a `MODE` column derived from `hitl` / `afk` labels.
-`--parent` is optional on `issue list`. Without it, lists all
-sub-issue-type items across the project — that's how the `triage` skill
-finds work by label.
-
-### Read an issue
-
-```sh
-thomctl prd view OPE-742          # human-readable, with description as plain text
-thomctl issue view OPE-743 --json # machine-readable
-```
-
-### Comment
-
-```sh
-thomctl issue comment OPE-743 --body-file comment.md
-thomctl issue comment OPE-743 --body "> *This was generated by AI during triage.*"
-```
-
-### Labels (triage)
-
-```sh
-thomctl issue label add    OPE-743 ready-for-agent
-thomctl issue label remove OPE-743 needs-triage
-```
-
-### Close
-
-```sh
-thomctl issue close OPE-743 --comment "Shipped in #PR-456"
-```
+GitHub shares one number space across issues and PRs, so a bare `#42` may be either: resolve with `gh pr view 42` and fall back to `gh issue view 42`.
 
 ## When a skill says "publish to the issue tracker"
 
-- **PRD** → `thomctl prd create --title ... --body-file ...`
-- **Sub-issue under an existing PRD** → `thomctl issue create --parent <KEY> --title ... --body-file ...`
+Create a GitHub issue.
 
 ## When a skill says "fetch the relevant ticket"
 
-`thomctl prd view <KEY> --json` or `thomctl issue view <KEY> --json`. The
-description is rendered to plain text, so you don't need to parse ADF.
+Read it as in **Read an issue** above.
 
-## Need the agent-facing cheat sheet?
+## Wayfinding operations
 
-```sh
-thomctl llm
-```
+Used by `/wayfinder`. The **map** is a single issue with **child** issues as tickets.
 
-Prints a focused markdown guide for an LLM agent — terse, with copy-pasteable
-examples for every workflow. Embedded in the binary, so it always matches the
-shipped behavior. Run this at the start of an agent session if the agent
-hasn't already read `docs/agents/issue-tracker.md`.
-
-## Gotcha: search index lag
-
-Jira's JQL index is eventually consistent — `thomctl issue list --parent KEY`
-right after `thomctl issue create` may return empty for ~2-3 seconds. **Don't
-rely on list to confirm a create succeeded.** Use the key printed by
-`create` (or its `--json` form) as the source of truth. List is for browsing
-later, not for round-tripping a just-created issue.
-
-## What thomctl is NOT
-
-- It is not a search interface — for complex JQL use `acli` directly.
-- It does not currently expose attachments, transitions other than "Done",
-  worklog, or sprints.
-- It does not edit the issue body after creation. Re-create or comment.
+- **Map**: a single issue labelled `wayfinder:map`, holding the Notes / Decisions-so-far / Fog body. `gh issue create --label wayfinder:map`.
+- **Child ticket**: an issue linked to the map as a GitHub sub-issue (see **Make an issue a sub-issue of a parent**). Where sub-issues aren't enabled, add the child to a task list in the map body and put `Part of #<map>` at the top of the child body. Labels: `wayfinder:<type>` (`research`/`prototype`/`grilling`/`task`). Once claimed, the ticket is assigned to the driving dev.
+- **Blocking**: GitHub's **native issue dependencies**, the canonical, UI-visible representation. Add an edge with `gh api --method POST repos/<owner>/<repo>/issues/<child>/dependencies/blocked_by -F issue_id=<blocker-db-id>`, where `<blocker-db-id>` is the blocker's numeric **database id** (`gh api repos/<owner>/<repo>/issues/<n> --jq .id`, _not_ the `#number` or `node_id`). GitHub reports `issue_dependencies_summary.blocked_by` (open blockers only, the live gate). Where dependencies aren't available, fall back to a `Blocked by: #<n>, #<n>` line at the top of the child body. A ticket is unblocked when every blocker is closed.
+- **Frontier query**: list the map's open children (`gh issue list --state open`, scoped to the map's sub-issues / task list), drop any with an open blocker (`issue_dependencies_summary.blocked_by > 0`, or an open issue in the `Blocked by` line) or an assignee; first in map order wins.
+- **Claim**: `gh issue edit <n> --add-assignee @me`, the session's first write.
+- **Resolve**: `gh issue comment <n> --body "<answer>"`, then `gh issue close <n>`, then append a context pointer (gist + link) to the map's Decisions-so-far.

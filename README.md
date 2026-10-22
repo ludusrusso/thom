@@ -296,8 +296,8 @@ to wire that up:
 1. **Pointer.** Have the consuming repo's `docs/agents/issue-tracker.md`
    contain a one-line "run `thomctl llm` and follow that". Skills can then
    fetch the latest agent guide directly from the binary.
-2. **Copy.** Copy `docs/agents/issue-tracker.md` from this repo into the
-   consuming repo. It's a static snapshot of how the skills should call
+2. **Copy.** Copy `docs/thomctl-issue-tracker.md` from this repo to the
+   consuming repo's `docs/agents/issue-tracker.md`. It's a static snapshot of how the skills should call
    `thomctl`.
 
 For a fresh repo, run `setup-matt-pocock-skills` first to scaffold the
@@ -320,9 +320,9 @@ internal/backend/
   ├── jira/                   # JiraBackend — shells out to acli
   └── github/                 # GithubBackend — shells out to gh (+ gh api graphql/REST)
 docs/adr/                     # architectural decision records
-docs/agents/
-  └── issue-tracker.md        # Pocock-skill recipe to drop into consumer repos
-CONTEXT.md                    # glossary of domain terms (PRD, Sub-issue, HITL, AFK)
+docs/agents/                  # Pocock-skill config for this repo (GitHub issues, triage labels, domain docs)
+docs/thomctl-issue-tracker.md # Pocock-skill recipe to drop into consumer repos
+GLOSSARY.md                   # glossary of domain terms (PRD, Sub-issue, HITL, AFK)
 ```
 
 ## Known quirks

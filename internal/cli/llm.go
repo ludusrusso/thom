@@ -8,7 +8,7 @@ import (
 )
 
 // guideMD is the canonical "how to use thomctl" doc agents should read at the
-// start of a session. It lives in docs/agents/issue-tracker.md so humans can
+// start of a session. It lives in internal/cli/llm_guide.md so humans can
 // edit it in git; `go:embed` pulls it into the binary so the doc shipped with
 // `thomctl` always matches the binary's behavior.
 //
