@@ -17,6 +17,7 @@ func issueCmd() *cobra.Command {
 	c.AddCommand(
 		issueCreateCmd(),
 		issueListCmd(),
+		issueSearchCmd(),
 		issueViewCmd(),
 		editCmd("issue", "OPE-743"),
 		issueCommentCmd(),
@@ -165,6 +166,47 @@ func issueListCmd() *cobra.Command {
 	c.Flags().BoolVar(&hitl, "hitl", false, "Shortcut for --label hitl.")
 	c.Flags().BoolVar(&afk, "afk", false, "Shortcut for --label afk.")
 	c.Flags().BoolVar(&all, "all", false, "Include completed issues. Off by default.")
+	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
+	return c
+}
+
+func issueSearchCmd() *cobra.Command {
+	var (
+		opts    backend.SearchOpts
+		jsonOut bool
+	)
+	c := &cobra.Command{
+		Use:   "search",
+		Short: "Find issues of any type by assignee, reporter and last update, most recent first. Completed issues hidden by default.",
+		Example: `  thomctl issue search --assignee @me --all-projects
+  thomctl issue search --reporter @me --assignee '!@me' --all-projects --json
+  thomctl issue search --reporter @me --updated-since 2026-10-30 --all`,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if opts.Assignee == "" && opts.Reporter == "" && opts.UpdatedSince == "" {
+				return errors.New("pass at least one of --assignee, --reporter, --updated-since")
+			}
+			be, _, err := resolveBackend()
+			if err != nil {
+				return err
+			}
+			issues, err := be.Search(opts)
+			if err != nil {
+				return err
+			}
+			if jsonOut {
+				return emitJSON(issues)
+			}
+			emitSearchTable(issues)
+			return nil
+		},
+	}
+	c.Flags().StringVar(&opts.Assignee, "assignee", "", "'@me', an email (Jira) or login (GitHub); prefix '!' for someone else (unassigned excluded).")
+	c.Flags().StringVar(&opts.Reporter, "reporter", "", "Who opened the issue; same values as --assignee.")
+	c.Flags().StringVar(&opts.UpdatedSince, "updated-since", "", "Only issues updated on or after this date (YYYY-MM-DD).")
+	c.Flags().BoolVar(&opts.AllProjects, "all-projects", false, "Search every project (Jira) or repo (GitHub), not just the configured one.")
+	c.Flags().StringVar(&opts.Status, "status", "", "Filter by status. Overrides --all.")
+	c.Flags().BoolVar(&opts.IncludeClosed, "all", false, "Include completed issues.")
+	c.Flags().IntVar(&opts.Limit, "limit", 0, "Max results. 0 = paginate all.")
 	c.Flags().BoolVar(&jsonOut, "json", false, "Print JSON to stdout.")
 	return c
 }

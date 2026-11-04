@@ -79,9 +79,59 @@ func (b *Backend) ListSubissues(parentKey string, opts backend.ListOpts) ([]back
 	return b.search(strings.Join(clauses, " AND ")+" ORDER BY key ASC", opts.Limit)
 }
 
+func (b *Backend) Search(opts backend.SearchOpts) ([]backend.Issue, error) {
+	jql, err := searchJQL(b.cfg.Jira.ProjectKey, opts)
+	if err != nil {
+		return nil, err
+	}
+	return b.search(jql, opts.Limit)
+}
+
+func searchJQL(projectKey string, opts backend.SearchOpts) (string, error) {
+	var clauses []string
+	if !opts.AllProjects {
+		if projectKey == "" {
+			return "", errors.New("no jira.project_key configured: set it or pass --all-projects")
+		}
+		clauses = append(clauses, fmt.Sprintf("project = %s", quote(projectKey)))
+	}
+	for _, p := range []struct{ field, who string }{{"assignee", opts.Assignee}, {"reporter", opts.Reporter}} {
+		if p.who != "" {
+			clauses = append(clauses, personClause(p.field, p.who))
+		}
+	}
+	if opts.UpdatedSince != "" {
+		clauses = append(clauses, fmt.Sprintf("updated >= %s", quote(opts.UpdatedSince)))
+	}
+	if opts.Status != "" {
+		clauses = append(clauses, fmt.Sprintf("status = %s", quote(opts.Status)))
+	} else if !opts.IncludeClosed {
+		clauses = append(clauses, "statusCategory != Done")
+	}
+	if len(clauses) == 0 {
+		return "", errors.New("search needs at least one filter")
+	}
+	return strings.Join(clauses, " AND ") + " ORDER BY updated DESC", nil
+}
+
+// personClause relies on JQL's "!=" never matching EMPTY, so "!@me" means
+// "someone else", not "anyone but me".
+func personClause(field, who string) string {
+	op := "="
+	if strings.HasPrefix(who, "!") {
+		op = "!="
+		who = strings.TrimPrefix(who, "!")
+	}
+	value := quote(who)
+	if who == "@me" {
+		value = "currentUser()"
+	}
+	return fmt.Sprintf("%s %s %s", field, op, value)
+}
+
 func (b *Backend) View(key string) (backend.Issue, error) {
 	out, err := b.run("workitem", "view", key,
-		"--fields", "key,issuetype,summary,status,assignee,labels,parent,updated,description",
+		"--fields", "key,issuetype,summary,status,assignee,reporter,labels,parent,updated,description",
 		"--json")
 	if err != nil {
 		return backend.Issue{}, err
@@ -313,9 +363,11 @@ func (b *Backend) create(opts backend.CreateOpts, issueType string, labels []str
 }
 
 func (b *Backend) search(jql string, limit int) ([]backend.Issue, error) {
+	// acli search rejects "updated" as an output field (view accepts it), so
+	// search results carry no Updated: they are ordered by it instead.
 	args := []string{"workitem", "search",
 		"--jql", jql,
-		"--fields", "key,issuetype,summary,status,assignee,labels",
+		"--fields", "key,issuetype,summary,status,assignee,reporter,labels",
 		"--json"}
 	if limit > 0 {
 		args = append(args, "--limit", fmt.Sprintf("%d", limit))
@@ -448,6 +500,10 @@ func (b *Backend) decodeIssue(r map[string]any) backend.Issue {
 	} else {
 		issue.Assignee = getStr(flat, "assignee")
 	}
+	if r, ok := flat["reporter"].(map[string]any); ok {
+		issue.Reporter = firstNonEmpty(getStr(r, "displayName"), getStr(r, "emailAddress"))
+	}
+	issue.Updated = getStr(flat, "updated")
 	if p, ok := flat["parent"].(map[string]any); ok {
 		issue.ParentKey = getStr(p, "key")
 	} else {

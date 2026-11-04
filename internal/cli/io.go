@@ -156,3 +156,33 @@ func emitIssueDetail(i backend.Issue, be backend.Backend) {
 		fmt.Printf("\n%s\n", strings.TrimRight(i.Description, "\n"))
 	}
 }
+
+func emitSearchTable(issues []backend.Issue) {
+	if len(issues) == 0 {
+		return
+	}
+	header := [6]string{"KEY", "TYPE", "STATUS", "ASSIGNEE", "REPORTER", "SUMMARY"}
+	rows := make([][6]string, 0, len(issues))
+	var width [6]int
+	for i, h := range header {
+		width[i] = len(h)
+	}
+	for _, is := range issues {
+		row := [6]string{is.Key, is.Type, is.Status, is.Assignee, is.Reporter, is.Summary}
+		rows = append(rows, row)
+		for i, cell := range row[:5] {
+			width[i] = max(width[i], len(cell))
+		}
+	}
+	printRow := func(row [6]string, key string) {
+		fmt.Printf("%s%s", key, strings.Repeat(" ", width[0]-len(row[0])+2))
+		for i := 1; i < 5; i++ {
+			fmt.Printf("%-*s  ", width[i], row[i])
+		}
+		fmt.Println(row[5])
+	}
+	printRow(header, header[0])
+	for n, row := range rows {
+		printRow(row, linkify(row[0], issues[n].URL))
+	}
+}

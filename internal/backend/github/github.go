@@ -150,6 +150,85 @@ func (b *Backend) listProjectWide(opts backend.ListOpts) ([]backend.Issue, error
 	return b.decodeIssueList(out)
 }
 
+// Search uses `gh search issues`. With AllProjects, keys are "owner/repo#N"
+// since a bare number is ambiguous across repos.
+func (b *Backend) Search(opts backend.SearchOpts) ([]backend.Issue, error) {
+	repo := ""
+	if !opts.AllProjects {
+		slug, err := b.slug()
+		if err != nil {
+			return nil, err
+		}
+		repo = slug
+	}
+	out, err := b.run(searchArgs(repo, opts)...)
+	if err != nil {
+		return nil, err
+	}
+	var raw []struct {
+		ghIssue
+		Author struct {
+			Login string `json:"login"`
+		} `json:"author"`
+		UpdatedAt  string `json:"updatedAt"`
+		Repository struct {
+			NameWithOwner string `json:"nameWithOwner"`
+		} `json:"repository"`
+	}
+	if err := json.Unmarshal(out, &raw); err != nil {
+		return nil, fmt.Errorf("decode search: %w", err)
+	}
+	issues := make([]backend.Issue, 0, len(raw))
+	for _, r := range raw {
+		if strings.HasPrefix(opts.Assignee, "!") && len(r.Assignees) == 0 {
+			continue
+		}
+		issue := r.ghIssue.toIssue(b.cfg.PRDLabel)
+		if opts.AllProjects {
+			issue.Key = r.Repository.NameWithOwner + "#" + issue.Key
+		}
+		issue.Reporter = r.Author.Login
+		issue.Updated = r.UpdatedAt
+		issues = append(issues, issue)
+	}
+	return issues, nil
+}
+
+func searchArgs(repo string, opts backend.SearchOpts) []string {
+	args := []string{"search", "issues",
+		"--json", "number,title,state,labels,assignees,url,author,updatedAt,repository",
+		"--sort", "updated", "--order", "desc",
+		"--limit", listLimit(opts.Limit),
+		"--",
+	}
+	if repo != "" {
+		args = append(args, "repo:"+repo)
+	}
+	for _, p := range []struct{ qualifier, who string }{{"assignee", opts.Assignee}, {"author", opts.Reporter}} {
+		if p.who == "" {
+			continue
+		}
+		if strings.HasPrefix(p.who, "!") {
+			args = append(args, "-"+p.qualifier+":"+strings.TrimPrefix(p.who, "!"))
+		} else {
+			args = append(args, p.qualifier+":"+p.who)
+		}
+	}
+	if opts.UpdatedSince != "" {
+		args = append(args, "updated:>="+opts.UpdatedSince)
+	}
+	state := "open"
+	if opts.Status != "" {
+		state = mapState(opts.Status)
+	} else if opts.IncludeClosed {
+		state = "all"
+	}
+	if state != "all" {
+		args = append(args, "state:"+state)
+	}
+	return args
+}
+
 func (b *Backend) View(key string) (backend.Issue, error) {
 	n, err := normalizeKey(key)
 	if err != nil {
