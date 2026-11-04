@@ -123,6 +123,12 @@ type Backend interface {
 	// Comment is optional.
 	Close(key, status, comment string) error
 
+	// Transition moves key to an arbitrary tracker-native status (e.g. the
+	// in-progress status). status is required. Comment is optional. Backends
+	// without arbitrary statuses (e.g. GitHub, whose issues are only
+	// open/closed) return an error. Use Close for terminal transitions.
+	Transition(key, status, comment string) error
+
 	// ListLinks returns all issue links involving key.
 	ListLinks(key string) ([]Link, error)
 

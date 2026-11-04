@@ -10,6 +10,9 @@
 //	thomctl issue view   KEY
 //	thomctl issue comment KEY --body-file ...
 //	thomctl issue label add|remove KEY LABEL
+//	thomctl issue start  KEY [--comment ...]
+//	thomctl issue review KEY [--comment ...]
+//	thomctl issue transition KEY --status ... [--comment ...]
 //	thomctl issue close  KEY [--comment ...]
 //
 // Most commands accept `--json` to produce machine-readable output for agents.
@@ -81,6 +84,10 @@ func configCmd() *cobra.Command {
 				fmt.Printf("jira.prd_issue_type      = %s\n", cfg.Jira.PRDIssueType)
 				fmt.Printf("jira.subissue_issue_type = %s\n", cfg.Jira.SubissueIssueType)
 				fmt.Printf("jira.close_status        = %s\n", cfg.Jira.CloseStatus)
+				fmt.Printf("jira.backlog_status      = %s\n", cfg.Jira.BacklogStatus)
+				fmt.Printf("jira.todo_status         = %s\n", cfg.Jira.TodoStatus)
+				fmt.Printf("jira.start_status        = %s\n", cfg.Jira.StartStatus)
+				fmt.Printf("jira.review_status       = %s\n", cfg.Jira.ReviewStatus)
 				fmt.Printf("jira.site                = %s\n", cfg.Jira.Site)
 			case "github":
 				fmt.Printf("github                   = (repo resolved from cwd by gh)\n")
