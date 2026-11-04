@@ -186,6 +186,24 @@ Use it when you have a PRD key and want its slices; use `issue list`
 The list output shows a `MODE` column (`HITL` / `AFK` / empty) so you can
 eyeball the state at a glance. JSON output includes the full `labels` array.
 
+### Search by person
+
+`issue list` walks the PRD/slice tree of one project. `issue search` is the
+person-centric view: any issue type, filtered by who holds it, who opened it
+and when it last moved, most recently updated first.
+
+```sh
+thomctl issue search --assignee @me --all-projects                  # my open work everywhere
+thomctl issue search --reporter @me --assignee '!@me' --all-projects # what I delegated, still open
+thomctl issue search --reporter @me --updated-since 2026-10-30 --all --json
+```
+
+`--assignee` / `--reporter` take `@me`, an email (Jira) or login (GitHub).
+A leading `!` means *someone else*: unassigned issues never match `!@me`.
+Without `--all-projects` the search stays in the configured project (Jira)
+or the current repo (GitHub); with it, GitHub keys become `owner/repo#N`.
+Search results carry `reporter` but not `updated`: use `view` for the date.
+
 ### View one issue
 
 ```sh
@@ -279,6 +297,9 @@ silent no-op.
   Italian-language Jira projects (OPE), that's `"Completata"`. The
   *transition name* (`"Completato"`) is NOT what you pass — pass the
   *target status name*.
+- **Closing outside the configured project.** `close_status` belongs to
+  that project's workflow. A key from `issue search --all-projects` may live
+  in another project whose terminal status differs: pass `--status`.
 - **Default `--assignee` is `@me`.** If you want to assign to someone else,
   pass their email. If you want unassigned, pass `--assignee ''` explicitly.
 

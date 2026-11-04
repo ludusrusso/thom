@@ -14,6 +14,8 @@ type Issue struct {
 	ParentKey string   `json:"parent_key,omitempty"`
 	URL       string   `json:"url,omitempty"`
 	Assignee  string   `json:"assignee,omitempty"`
+	Reporter  string   `json:"reporter,omitempty"`
+	Updated   string   `json:"updated,omitempty"`
 
 	// Description is plain-text (rendered from the tracker's native format).
 	// Returned only by View, not by list operations.
@@ -22,11 +24,11 @@ type Issue struct {
 
 // CreateOpts is the input for creating a PRD or sub-issue.
 type CreateOpts struct {
-	Summary    string
-	BodyMD     string
-	Labels     []string
-	ParentKey  string // empty for top-level PRDs
-	Assignee   string // empty = unassigned, "@me" = self
+	Summary   string
+	BodyMD    string
+	Labels    []string
+	ParentKey string // empty for top-level PRDs
+	Assignee  string // empty = unassigned, "@me" = self
 }
 
 // EditOpts is the input for editing an existing issue. Nil fields are left
@@ -46,6 +48,27 @@ type ListOpts struct {
 	// operations exclude completed/closed items. Explicit Status takes
 	// precedence — passing Status="Done" returns Done items regardless.
 	IncludeClosed bool
+}
+
+// SearchOpts filters person-centric searches that cross issue types (and,
+// with AllProjects, projects or repos).
+type SearchOpts struct {
+	// Assignee and Reporter take "@me", a tracker user (email on Jira, login
+	// on GitHub), or either prefixed with "!" to negate. A negated person
+	// matches only issues that have someone else in that role: "!@me" as
+	// assignee excludes unassigned issues.
+	Assignee string
+	Reporter string
+
+	// UpdatedSince is a YYYY-MM-DD date; empty = no lower bound.
+	UpdatedSince string
+
+	// AllProjects drops the configured project (Jira) or repo (GitHub) scope.
+	AllProjects bool
+
+	Status        string
+	IncludeClosed bool
+	Limit         int
 }
 
 // Link is one directed relationship between two issues. Direction is "in"
@@ -75,6 +98,10 @@ type Backend interface {
 	// empty, lists sub-issue-type items across the whole project (used by
 	// triage workflows that filter by label rather than by parent).
 	ListSubissues(parentKey string, opts ListOpts) ([]Issue, error)
+
+	// Search lists issues of any type by person and recency, most recently
+	// updated first.
+	Search(opts SearchOpts) ([]Issue, error)
 
 	// View returns full detail for a single issue.
 	View(key string) (Issue, error)

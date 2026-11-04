@@ -19,7 +19,7 @@ on the agent's behalf:
 
 ```
 thomctl prd    create | list | view | edit | issues
-thomctl issue  create | list | view | edit | comment | label | link | close
+thomctl issue  create | list | search | view | edit | comment | label | link | close
 thomctl ralph  <PRD> [--afk] | once <PRD> | clean
 thomctl init                                 # scaffold .thom/ and migrate legacy config
 thomctl config                               # show resolved config
