@@ -53,6 +53,18 @@ type JiraConfig struct {
 	SubissueIssueType string `yaml:"subissue_issue_type"`
 	CloseStatus       string `yaml:"close_status"`
 
+	// Language-independent IDs. Jira translates the names of its built-in
+	// issue types and statuses per *user profile language* (Sub-task vs
+	// Sottotask, Done vs Completata), and acli expects the name as the
+	// calling user sees it — so a committed name works for some users and
+	// breaks for others. When an ID is set it wins over the matching name
+	// above: thomctl resolves it to the caller's own localised name at
+	// runtime (and uses it directly in JQL). Optional; empty keeps the
+	// name-based behaviour.
+	PRDIssueTypeID      string `yaml:"prd_issue_type_id"`
+	SubissueIssueTypeID string `yaml:"subissue_issue_type_id"`
+	CloseStatusID       string `yaml:"close_status_id"`
+
 	// Site is the Atlassian instance base URL (e.g. https://acme.atlassian.net).
 	// Used to synthesise issue URLs as <site>/browse/<KEY>. Optional — when
 	// empty, list/view output stays plain (no clickable hyperlinks).
